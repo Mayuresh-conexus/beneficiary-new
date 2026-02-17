@@ -1,0 +1,431 @@
+/* =====================================================================
+   FIELD CONNECT — MOBILE WEB APP STYLES
+   Matches Stitch UI designs for all 10 mobile screens
+   ===================================================================== */
+
+/* --- Base & Reset --- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    height: 100%;
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: hidden;
+    font-family: 'Public Sans', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    background-color: #f6f6f8;
+    color: #1e293b;
+}
+
+#app {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background-color: #f6f6f8;
+}
+
+/* --- Safe Areas --- */
+.safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* --- Screen Container --- */
+.screen {
+    display: none;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.screen.active {
+    display: flex;
+}
+
+.screen-scroll {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* --- Scrollbar Hide --- */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* --- Splash Screen --- */
+@keyframes loadProgress {
+    0% {
+        width: 0%;
+    }
+
+    100% {
+        width: 100%;
+    }
+}
+
+.animate-progress {
+    animation: loadProgress 2.5s ease-in-out forwards;
+}
+
+@keyframes logoPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.03);
+        opacity: 0.95;
+    }
+}
+
+.animate-logo-pulse {
+    animation: logoPulse 3s ease-in-out infinite;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fadeIn {
+    animation: fadeIn 0.35s ease-out forwards;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(100%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-slideUp {
+    animation: slideUp 0.3s ease-out forwards;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-slideDown {
+    animation: slideDown 0.25s ease-out forwards;
+}
+
+/* --- Floating Label Inputs --- */
+.float-input {
+    position: relative;
+}
+
+.float-input input,
+.float-input textarea,
+.float-input select {
+    width: 100%;
+    padding: 14px 16px 14px 44px;
+    font-size: 15px;
+    background: transparent;
+    border: 2px solid #cbd5e1;
+    border-radius: 0.5rem;
+    color: #1e293b;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.float-input input:focus,
+.float-input textarea:focus,
+.float-input select:focus {
+    border-color: #1e3b8a;
+}
+
+.float-input .icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 20px;
+    pointer-events: none;
+    transition: color 0.2s;
+}
+
+.float-input input:focus~.icon {
+    color: #1e3b8a;
+}
+
+/* --- Toast Notification --- */
+.toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100%);
+    z-index: 9999;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    transition: transform 0.3s ease;
+    max-width: 90%;
+}
+
+.toast.show {
+    transform: translateX(-50%) translateY(0);
+}
+
+.toast.success {
+    background: #059669;
+    color: #fff;
+}
+
+.toast.error {
+    background: #EF4444;
+    color: #fff;
+}
+
+.toast.warning {
+    background: #f59e0b;
+    color: #fff;
+}
+
+/* --- Loading Spinner --- */
+.spinner {
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* --- Offline Banner --- */
+.offline-banner {
+    background: #FBBF24;
+    color: #78350F;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.offline-banner.show {
+    display: flex;
+}
+
+/* --- Bottom Nav --- */
+.bottom-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background: #fff;
+    border-top: 1px solid #e2e8f0;
+    height: 64px;
+    flex-shrink: 0;
+}
+
+.bottom-nav a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 10px;
+    font-weight: 500;
+    transition: color 0.2s;
+    padding: 4px 12px;
+}
+
+.bottom-nav a.active {
+    color: #1e3b8a;
+}
+
+.bottom-nav a .material-icons-round {
+    font-size: 24px;
+}
+
+/* --- FAB --- */
+.fab {
+    position: absolute;
+    bottom: 80px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    background: #1e3b8a;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(30, 59, 138, 0.4);
+    cursor: pointer;
+    font-size: 24px;
+    z-index: 10;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.fab:active {
+    transform: scale(0.92);
+}
+
+/* --- Gender Selector --- */
+.gender-group {
+    display: flex;
+    background: #e2e8f0;
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.gender-group label {
+    flex: 1;
+    cursor: pointer;
+}
+
+.gender-group input {
+    display: none;
+}
+
+.gender-group span {
+    display: block;
+    text-align: center;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 6px;
+    transition: all 0.2s;
+    color: #64748b;
+}
+
+.gender-group input:checked+span {
+    background: #fff;
+    color: #1e3b8a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* --- Document Upload Card --- */
+.doc-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.doc-card.uploaded {
+    border-color: #bbf7d0;
+}
+
+.doc-card .upload-area {
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.doc-card .upload-area:hover {
+    border-color: rgba(30, 59, 138, 0.4);
+    background: rgba(30, 59, 138, 0.03);
+}
+
+/* --- Status Timeline --- */
+.timeline {
+    position: relative;
+    padding-left: 16px;
+    border-left: 2px solid #e2e8f0;
+    margin-left: 12px;
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 24px;
+    padding-left: 20px;
+}
+
+.timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+.timeline-dot {
+    position: absolute;
+    left: -25px;
+    top: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 4px solid #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    z-index: 1;
+}
+
+.timeline-dot.completed {
+    background: #1e3b8a;
+    color: #fff;
+}
+
+.timeline-dot.rejected {
+    background: #EF4444;
+    color: #fff;
+}
+
+.timeline-dot.pending {
+    background: #f59e0b;
+    color: #fff;
+}

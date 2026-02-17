@@ -1,0 +1,266 @@
+{
+    "info": {
+        "name": "Field Connect API v1",
+        "description": "Beneficiary Management System API — Full endpoint collection",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:8000/api/v1"
+        },
+        {
+            "key": "token",
+            "value": ""
+        }
+    ],
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{token}}"
+            }
+        ]
+    },
+    "item": [
+        {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "Login",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{base_url}}/login",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"volunteer@ngo.org\",\n  \"password\": \"password\"\n}"
+                        }
+                    },
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var res = pm.response.json(); if(res.data && res.data.token) pm.collectionVariables.set('token', res.data.token);"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "name": "Get Profile",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{base_url}}/me"
+                    }
+                },
+                {
+                    "name": "Logout",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{base_url}}/logout"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Volunteer",
+            "item": [
+                {
+                    "name": "Dashboard Stats",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{base_url}}/volunteer/dashboard"
+                    }
+                },
+                {
+                    "name": "My Projects",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{base_url}}/volunteer/projects"
+                    }
+                },
+                {
+                    "name": "Project Packages",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{base_url}}/project/1/packages"
+                    }
+                },
+                {
+                    "name": "Sync Status",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{base_url}}/sync-status"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Beneficiaries",
+            "item": [
+                {
+                    "name": "Create Beneficiary",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{base_url}}/beneficiaries",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"first_name\": \"Sarah\",\n  \"last_name\": \"Al-Fayed\",\n  \"government_id\": \"899320-1123\",\n  \"assigned_project_id\": 1,\n  \"latitude\": -1.3145,\n  \"longitude\": 36.7845,\n  \"contact_number\": \"+254712345678\",\n  \"address\": \"Kibera Zone 4, Nairobi\",\n  \"date_of_birth\": \"1985-03-14\",\n  \"gender\": \"female\",\n  \"package_ids\": [1]\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "My Submissions",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{base_url}}/beneficiaries/my-submissions"
+                    }
+                },
+                {
+                    "name": "My Submissions (Filtered)",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{base_url}}/beneficiaries/my-submissions?status=approved"
+                    }
+                },
+                {
+                    "name": "Show Beneficiary",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{base_url}}/beneficiary/1"
+                    }
+                },
+                {
+                    "name": "Resubmit Beneficiary",
+                    "request": {
+                        "method": "PUT",
+                        "url": "{{base_url}}/beneficiary/1",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"first_name\": \"Sarah\",\n  \"last_name\": \"Al-Fayed\",\n  \"contact_number\": \"+254712345678\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Review Beneficiary (Approve)",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{base_url}}/beneficiary/1/review",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"action\": \"approve\",\n  \"remarks\": \"All documents verified.\"\n}"
+                        }
+                    }
+                },
+                {
+                    "name": "Review Beneficiary (Reject)",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{base_url}}/beneficiary/1/review",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"action\": \"reject\",\n  \"remarks\": \"ID photo is too blurry. Please retake.\"\n}"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Upload",
+            "item": [
+                {
+                    "name": "Upload Document",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{base_url}}/upload",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "beneficiary_id",
+                                    "value": "1",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "type",
+                                    "value": "id_proof",
+                                    "type": "text"
+                                },
+                                {
+                                    "key": "file",
+                                    "type": "file",
+                                    "src": ""
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Notifications",
+            "item": [
+                {
+                    "name": "List Notifications",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{base_url}}/notifications"
+                    }
+                },
+                {
+                    "name": "Unread Count",
+                    "request": {
+                        "method": "GET",
+                        "url": "{{base_url}}/notifications/unread-count"
+                    }
+                },
+                {
+                    "name": "Mark As Read",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{base_url}}/notifications/1/read"
+                    }
+                },
+                {
+                    "name": "Mark All Read",
+                    "request": {
+                        "method": "POST",
+                        "url": "{{base_url}}/notifications/mark-all-read"
+                    }
+                }
+            ]
+        }
+    ]
+}

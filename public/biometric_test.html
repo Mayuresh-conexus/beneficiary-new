@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biometric Scanner Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f1f5f9;
+            font-family: sans-serif;
+        }
+
+        .success {
+            color: #059669;
+        }
+
+        .error {
+            color: #dc2626;
+        }
+
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background: #1e293b;
+            color: #cbd5e1;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body class="p-10">
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
+        <div class="flex items-center gap-4 mb-6 border-b border-gray-100 pb-6">
+            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                <span class="material-icons-round text-3xl">fingerprint</span>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">Biometric Scanner Test Tool</h1>
+                <p class="text-gray-500">Connect your USB scanner to test biometric capture & API submission.</p>
+            </div>
+        </div>
+
+        <!-- Login Section -->
+        <div id="login-section" class="mb-8 p-6 bg-blue-50 rounded-lg border border-blue-100">
+            <h3 class="font-bold text-blue-800 mb-2">Step 1: Authenticate</h3>
+            <div class="flex gap-4 items-end">
+                <div class="flex-1">
+                    <label class="block text-xs font-semibold text-blue-600 mb-1">Email</label>
+                    <input type="email" id="email" value="david@globalaid.org"
+                        class="w-full px-3 py-2 border border-blue-200 rounded text-sm">
+                </div>
+                <div class="flex-1">
+                    <label class="block text-xs font-semibold text-blue-600 mb-1">Password</label>
+                    <input type="password" id="password" value="password"
+                        class="w-full px-3 py-2 border border-blue-200 rounded text-sm">
+                </div>
+                <button onclick="login()"
+                    class="bg-blue-600 text-white px-6 py-2 rounded font-semibold text-sm hover:bg-blue-700 transition">Login</button>
+            </div>
+            <p id="login-msg" class="text-xs mt-2 font-medium"></p>
+        </div>
+
+        <!-- Mobile Warning -->
+        <div
+            class="md:hidden bg-amber-100 border border-amber-200 p-4 rounded-lg text-amber-900 text-xs mb-6 flex items-start gap-3">
+            <span class="material-icons-round text-amber-600 text-lg">warning</span>
+            <div>
+                <strong>Mobile Browser Detected:</strong>
+                <p class="mt-1">USB Scanners in mobile browsers (Chrome Android) are often blocked by security policies.
+                    For mobile, please use the <strong>Native Flutter App</strong>. To test this API, please use a
+                    <strong>Windows Laptop</strong>.
+                </p>
+            </div>
+        </div>
+
+        <div id="main-content"
+            class="grid grid-cols-1 md:grid-cols-2 gap-8 opacity-50 pointer-events-none transition-opacity">
+            <!-- Controls -->
+            <div class="space-y-6">
+                <!-- Capture -->
+                <div class="bg-white p-4 border border-gray-200 rounded-lg">
+                    <h3 class="font-bold text-gray-700 mb-2 flex items-center gap-2">
+                        <span
+                            class="bg-gray-200 text-gray-600 rounded-full w-6 h-6 flex items-center justify-center text-xs">2</span>
+                        Capture Fingerprint
+                    </h3>
+                    <p class="text-xs text-gray-500 mb-4">Ensure RD Service is running (Port 11100).</p>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="captureBiometric()"
+                            class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-2 rounded-lg text-xs flex flex-col items-center justify-center gap-1">
+                            <span class="material-icons-round text-lg">touch_app</span>
+                            <span>Hardware Scan</span>
+                        </button>
+                        <button onclick="simulateCapture()"
+                            class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-2 rounded-lg text-xs flex flex-col items-center justify-center gap-1">
+                            <span class="material-icons-round text-lg">science</span>
+                            <span>Simulate (Test)</span>
+                        </button>
+                    </div>
+                    <p id="status" class="mt-2 text-sm font-medium text-gray-500">Status: Idle</p>
+                </div>
+
+                <!-- Submit -->
+                <div id="save-section"
+                    class="bg-white p-4 border border-gray-200 rounded-lg opacity-50 pointer-events-none transition-all">
+                    <h3 class="font-bold text-gray-700 mb-2 flex items-center gap-2">
+                        <span
+                            class="bg-gray-200 text-gray-600 rounded-full w-6 h-6 flex items-center justify-center text-xs">3</span>
+                        Register Beneficiary
+                    </h3>
+                    <p class="text-xs text-gray-500 mb-4">Create a new record with this fingerprint.</p>
+
+                    <div class="space-y-3 mb-4">
+                        <input type="text" id="p_id" value="1" placeholder="Project ID"
+                            class="w-full px-4 py-2 border rounded-lg text-sm bg-gray-50">
+                    </div>
+
+                    <button onclick="saveToBackend()"
+                        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg shadow-emerald-600/30 transition-all flex items-center justify-center gap-2">
+                        <span class="material-icons-round">cloud_upload</span> Submit to API
+                    </button>
+                    <div id="api-result"
+                        class="mt-4 hidden p-3 bg-emerald-50 text-emerald-800 text-xs rounded border border-emerald-100 font-mono break-all">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Display -->
+            <div
+                class="bg-slate-900 rounded-xl p-5 text-slate-300 font-mono text-xs overflow-hidden flex flex-col h-full">
+                <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+                    <span class="uppercase tracking-wider font-bold text-slate-500">Scanner Output</span>
+                    <span id="device-info" class="bg-slate-800 px-2 py-1 rounded text-slate-400">Not Connected</span>
+                </div>
+
+                <div class="flex-1 overflow-y-auto space-y-4 pr-2 custom-scroll">
+                    <div>
+                        <p class="text-slate-500 mb-1">Quality Score</p>
+                        <div class="w-full bg-slate-800 rounded-full h-2 mb-1">
+                            <div id="quality-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                                style="width: 0%"></div>
+                        </div>
+                        <p id="quality-text" class="text-right text-[10px]">0%</p>
+                    </div>
+
+                    <div>
+                        <p class="text-slate-500 mb-1">ISO Template Data (Base64)</p>
+                        <pre id="iso-template"
+                            class="text-slate-400 break-all whitespace-pre-wrap">Waiting for capture...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = '';
+        let capturedTemplate = null;
+        let deviceInfo = null;
+        const API_BASE = '/api/v1';
+
+        // --- AUTH ---
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const msg = document.getElementById('login-msg');
+
+            msg.textContent = 'Authenticating...';
+            msg.className = 'text-xs mt-2 font-medium text-blue-600';
+
+            try {
+                const res = await fetch(API_BASE + '/login', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    authToken = data.data.token;
+                    msg.textContent = 'Authenticated as ' + data.data.user.name;
+                    msg.className = 'text-xs mt-2 font-medium success';
+                    document.getElementById('main-content').classList.remove('opacity-50', 'pointer-events-none');
+                    document.getElementById('login-section').classList.add('opacity-50', 'pointer-events-none');
+                } else {
+                    throw new Error(data.message || 'Login failed');
+                }
+            } catch (e) {
+                msg.textContent = e.message;
+                msg.className = 'text-xs mt-2 font-medium error';
+            }
+        }
+
+        // --- SIMULATE ---
+        function simulateCapture() {
+            capturedTemplate = "MOCK_ISO_TEMPLATE_BASE64_" + btoa(Date.now());
+            deviceInfo = "Simulated_Scanner";
+
+            document.getElementById('iso-template').textContent = capturedTemplate;
+            document.getElementById('device-info').textContent = deviceInfo;
+            document.getElementById('quality-bar').style.width = '100%';
+            document.getElementById('quality-text').textContent = '100%';
+
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = 'Simulation Success 🧪';
+            statusEl.className = 'mt-2 text-sm font-medium text-amber-600';
+
+            document.getElementById('save-section').classList.remove('opacity-50', 'pointer-events-none');
+        }
+
+        // --- CAPTURE ---
+        async function captureBiometric() {
+            const statusEl = document.getElementById('status');
+            const templateEl = document.getElementById('iso-template');
+
+            statusEl.textContent = 'Scanning ports 11100-11105...';
+            statusEl.className = 'mt-2 text-sm font-medium text-blue-600';
+
+            // Try ports 11100 to 11105 (Standard RD Service range)
+            const ports = [11100, 11101, 11102, 11103, 11104, 11105];
+            let response = null;
+            let activePort = null;
+
+            for (const port of ports) {
+                try {
+                    statusEl.textContent = `Trying Port ${port}...`;
+                    const res = await fetch(`http://127.0.0.1:${port}/rd/capture`, {
+                        method: 'CAPTURE',
+                        headers: { 'Content-Type': 'text/xml' },
+                        body: '<PidOptions ver="1.0"><Opts fCount="1" fType="2" iCount="0" pCount="0" format="0" pidVer="2.0" timeout="10000" posh="UNKNOWN" env="P" /><Demo></Demo></PidOptions>'
+                    });
+
+                    if (res.ok) {
+                        response = res;
+                        activePort = port;
+                        break; // Found it!
+                    }
+                } catch (e) {
+                    // Continue to next port
+                }
+            }
+
+            if (!response) {
+                statusEl.textContent = 'Connection Failed. Is the RD Service App installed & ready?';
+                statusEl.className = 'mt-2 text-sm font-medium error';
+                console.error("No RD Service found on ports 11100-11105");
+                return;
+            }
+
+            try {
+                statusEl.textContent = `Connected on Port ${activePort}! Processing...`;
+                const text = await response.text();
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(text, "text/xml");
+
+                const respCode = xmlDoc.getElementsByTagName("Resp")[0]?.getAttribute("errCode");
+                if (respCode !== "0") {
+                    const errInfo = xmlDoc.getElementsByTagName("Resp")[0]?.getAttribute("errInfo") || 'Capture Failed';
+                    throw new Error(`${errInfo} (Code: ${respCode})`);
+                }
+
+                const biometricData = xmlDoc.getElementsByTagName("Data")[0]?.childNodes[0]?.nodeValue;
+                const devInfoRaw = xmlDoc.getElementsByTagName("DeviceInfo")[0];
+                const quality = xmlDoc.getElementsByTagName("Resp")[0]?.getAttribute("qScore");
+
+                if (biometricData) {
+                    capturedTemplate = biometricData;
+                    deviceInfo = (devInfoRaw?.getAttribute("dc") || "USB_Scanner") + ` (Port ${activePort})`;
+
+                    templateEl.textContent = biometricData;
+                    document.getElementById('device-info').textContent = deviceInfo;
+                    document.getElementById('quality-bar').style.width = quality + '%';
+                    document.getElementById('quality-text').textContent = quality + '%';
+
+                    statusEl.textContent = 'Capture Success ✅';
+                    statusEl.className = 'mt-2 text-sm font-medium success';
+
+                    document.getElementById('save-section').classList.remove('opacity-50', 'pointer-events-none');
+                }
+            } catch (err) {
+                statusEl.textContent = 'Capture Failed: ' + err.message;
+                statusEl.className = 'mt-2 text-sm font-medium error';
+                console.error(err);
+            }
+        }
+
+        // --- SUBMIT ---
+        async function saveToBackend() {
+            const pid = document.getElementById('p_id').value;
+            const resBox = document.getElementById('api-result');
+
+            resBox.classList.remove('hidden');
+            resBox.textContent = 'Submitting...';
+            resBox.className = 'mt-4 p-3 text-xs rounded border font-mono break-all bg-blue-50 text-blue-800 border-blue-100';
+
+            try {
+                const res = await fetch(API_BASE + '/beneficiaries', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + authToken,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        first_name: "BioTest",
+                        last_name: "FingerprintUser",
+                        government_id: "ID-" + Math.floor(Math.random() * 10000),
+                        assigned_project_id: pid,
+                        biometric_template: capturedTemplate,
+                        biometric_device: deviceInfo,
+                        status: 'submitted'
+                    })
+                });
+
+                const data = await res.json();
+
+                if (data.success || res.ok) {
+                    resBox.textContent = 'SUCCESS: Created Beneficiary ID ' + (data.data?.id || 'Unknown');
+                    resBox.className = 'mt-4 p-3 text-xs rounded border font-mono break-all bg-emerald-50 text-emerald-800 border-emerald-100';
+                } else {
+                    resBox.textContent = 'ERROR: ' + (data.message || JSON.stringify(data));
+                    resBox.className = 'mt-4 p-3 text-xs rounded border font-mono break-all bg-red-50 text-red-800 border-red-100';
+                }
+            } catch (e) {
+                resBox.textContent = 'NETWORK ERROR: ' + e.message;
+                resBox.className = 'mt-4 p-3 text-xs rounded border font-mono break-all bg-red-50 text-red-800 border-red-100';
+            }
+        }
+    </script>
+</body>
+
+</html>
