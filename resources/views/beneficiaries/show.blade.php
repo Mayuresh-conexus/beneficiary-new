@@ -409,6 +409,7 @@ function simulateFingerprint(forceFail = false) {
 }
 // ================= SECUGEN WEBAPI INTEGRATION =================
 
+// --- 1. CAPTURE (WebAPI 8443) ---
 function captureFP() {
     // 1. Check if stored template exists
     var storedTemplate = document.getElementById('storedTemplate').value;
@@ -418,86 +419,101 @@ function captureFP() {
     }
 
     var statusMsg = document.getElementById('statusMessage');
-    statusMsg.innerText = "Scanning from RD Service (Port 11100)...";
-    statusMsg.className = "text-xs font-bold text-indigo-600 animate-pulse mt-1";
+    statusMsg.innerText = "Scanning via WebAPI (Port 8443)...";
+    statusMsg.className = "text-xs font-bold text-blue-600 animate-pulse mt-1";
 
-    // 2. Call RD Service (Port 11100 HTTPS)
-    // Using HTTPS to avoid mixed content errors
-    var rdUrl = "https://127.0.0.1:11100/rd/capture";
-    var pidOptions = '<PidOptions ver="1.0"><Opts fCount="1" fType="2" iCount="0" pCount="0" format="0" pidVer="2.0" timeout="10000" posh="UNKNOWN" env="P" /><Demo></Demo></PidOptions>';
+    var uri = "https://localhost:8443/SGIFPCapture";
+    var xmlhttp = new XMLHttpRequest();
+    
+    xmlhttp.onreadystatechange = function () {
+        if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+            var fpobject = JSON.parse(xmlhttp.responseText);
+            if (fpobject.ErrorCode == 0) {
+                // Scenario: Capture Successful -> Now Verification
+                var capturedTemplate = fpobject.TemplateBase64;
+                
+                // Integrity Checks
+                if (storedTemplate.length > 5000) {
+                    statusMsg.innerText = "Error: Stored data is Image!";
+                    alert("CRITICAL: Stored data is an Image, not a Template.");
+                    return;
+                }
+                if (storedTemplate.startsWith("MOCK_")) {
+                    statusMsg.innerText = "Error: Cannot verify MOCK data.";
+                    alert("Cannot verify against MOCK data. Please re-enroll.");
+                    return;
+                }
 
-    fetch(rdUrl, {
-        method: 'CAPTURE',
-        headers: { 'Content-Type': 'text/xml', 'Accept': 'text/xml' },
-        body: pidOptions
-    })
-    .then(response => {
-        if (!response.ok) throw new Error("RD Service Connection Failed");
-        return response.text();
-    })
-    .then(pidXml => {
-        // 3. Parse XML via Backend
-        statusMsg.innerText = "Processing Biometric Data...";
-        const csrf = document.querySelector('meta[name="csrf-token"]').content;
-
-        return fetch('/api/v1/biometrics/parse-xml', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrf,
-                'Authorization': 'Bearer ' + '{{ auth()->user()->createToken("temp_verify")->plainTextToken }}' // Or use session auth if route allows
-            },
-            body: JSON.stringify({ pid_xml: pidXml })
-        });
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-             var capturedTemplate = data.data.template;
-             
-             // Check Stored Data Integrity
-             if (storedTemplate.length > 5000) {
-                 statusMsg.innerText = "Error: Stored data is Image!";
-                 statusMsg.className = "text-xs font-bold text-red-600 mt-1";
-                 alert("CRITICAL: Stored data is an Image, not a Template. Re-enroll required.");
-                 return;
-             }
-             if (storedTemplate.startsWith("MOCK_")) {
-                 statusMsg.innerText = "Error: Cannot verify against MOCK data.";
-                 statusMsg.className = "text-xs font-bold text-amber-600 mt-1";
-                 alert("Verify Failed: Stored data is MOCK/SIMULATION.");
-                 return;
-             }
-
-             statusMsg.innerText = "Verifying...";
-             verifyFP(capturedTemplate, storedTemplate);
-        } else {
-            throw new Error(data.message || "XML Parsing Failed");
+                statusMsg.innerText = "Capture Success. Verifying...";
+                verifyFP(capturedTemplate, storedTemplate);
+            } else {
+                statusMsg.innerText = "Scanner Error #" + fpobject.ErrorCode;
+                statusMsg.className = "text-xs font-bold text-red-500 mt-1";
+                alert("Scanner Error: " + fpobject.ErrorCode);
+            }
+        } else if (xmlhttp.status == 404) {
+             statusMsg.innerText = "WebAPI Service Not Found.";
         }
-    })
-    .catch(error => {
-        console.error("Capture Error:", error);
-        statusMsg.innerHTML = '<span class="text-red-500 font-bold">Capture Failed. </span><span class="text-xs">Is RD Service (11100) running?</span>';
-        statusMsg.className = "text-xs mt-1 leading-tight";
-        logClientError("Capture/Parse Failed", { error: error.message });
-        
-        // Check for Mixed Content
-        if (window.location.protocol === 'https:') {
-             alert("HTTPS Mixed Content Block?\n\nEnable 'Insecure Localhost' in chrome://flags if scanning fails.");
-        }
-    });
+    }
+    
+    // Force ISO Format
+    var params = "Timeout=10000&Quality=40&licstr=&templateFormat=ISO";
+    
+    xmlhttp.open("POST", uri, true);
+    xmlhttp.timeout = 10000;
+    xmlhttp.send(params);
+
+    xmlhttp.onerror = function (e) {
+        statusMsg.innerHTML = '<span class="text-amber-600 font-bold">Connection Failed.</span> <a href="https://localhost:8443/SGIFPCapture" target="_blank" class="underline">Check Cert</a>';
+    };
 }
 
+// --- 2. VERIFY (WebAPI 8443) ---
 function verifyFP(capturedTemplate, storedTemplate) {
-    console.log("Starting Verification process...");
+    console.log("Starting Verification process (WebAPI)...");
     var statusMsg = document.getElementById('statusMessage');
-    statusMsg.innerText = "Verifying on Backend...";
-    statusMsg.className = "text-xs font-bold text-indigo-600 animate-pulse mt-1";
     
-    // We send BOTH templates to the backend for comparison
-    // Or, common practice: send capturedTemplate, and backend looks up stored based on Beneficiary ID
-    // But verify-biometric endpoint likely expects the captured template.
+    var uri = "https://localhost:8443/SGIFPMatch";
+    var xmlhttp = new XMLHttpRequest();
+
+    xmlhttp.onreadystatechange = function () {
+        if (xmlhttp.readyState == 4) {
+            if (xmlhttp.status == 200) {
+                var fpobject = JSON.parse(xmlhttp.responseText);
+                if (fpobject.ErrorCode == 0) {
+                    var score = fpobject.MatchingScore;
+                    if (score >= 80) {
+                        // SUCCESS: Log to backend
+                        logVerificationSuccess();
+                        handleSuccess(score);
+                         statusMsg.innerText = "Matched! Score: " + score;
+                         statusMsg.className = "text-xs font-bold text-emerald-600 mt-1";
+                    } else {
+                        handleFailure(score);
+                    }
+                } else {
+                    alert("Matching Error: " + fpobject.ErrorCode);
+                    statusMsg.innerText = "Match Error #" + fpobject.ErrorCode;
+                }
+            } else {
+                statusMsg.innerText = "Match Service Error: " + xmlhttp.status;
+            }
+        }
+    };
+
+    // Both templates must be ISO
+    var params = "template1=" + encodeURIComponent(capturedTemplate) + 
+                 "&template2=" + encodeURIComponent(storedTemplate) + 
+                 "&templateFormat=ISO" + 
+                 "&licstr=";
     
+    xmlhttp.open("POST", uri, true);
+    xmlhttp.timeout = 10000;
+    xmlhttp.send(params);
+}
+
+// --- 3. LOG SUCCESS TO BACKEND ---
+function logVerificationSuccess() {
     const beneficiaryId = "{{ $beneficiary->id }}";
     const csrf = document.querySelector('meta[name="csrf-token"]').content;
 
@@ -507,29 +523,8 @@ function verifyFP(capturedTemplate, storedTemplate) {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': csrf,
             'Authorization': 'Bearer ' + '{{ auth()->user()->createToken("temp_verify")->plainTextToken }}'
-        },
-        body: JSON.stringify({ 
-            biometric_template: capturedTemplate,
-            // stored_template: storedTemplate // Optional, backend might fetch from DB
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success' || data.match === true) { // check your backend response structure
-             handleSuccess(data.score || 100);
-             statusMsg.innerText = "Verification Success! ✅";
-             statusMsg.className = "text-xs font-bold text-emerald-600 mt-1";
-        } else {
-             handleFailure(data.score || 0);
-             statusMsg.innerText = "Verification Failed: " + (data.message || "Mismatch");
         }
-    })
-    .catch(error => {
-        console.error("Verification Error:", error);
-        statusMsg.innerText = "Verification Server Error";
-        statusMsg.className = "text-xs font-bold text-red-500 mt-1";
-        logClientError("Verification Failed", { error: error.message });
-    });
+    }); // We don't wait for this, just fire and forget
 }
 
 function testMatchService() {
