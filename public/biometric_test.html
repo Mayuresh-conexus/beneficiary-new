@@ -214,6 +214,43 @@
             document.getElementById('save-section').classList.remove('opacity-50', 'pointer-events-none');
         }
 
+        // --- DIAGNOSTIC ---
+        async function checkConnection() {
+            var statusEl = document.getElementById('status');
+            statusEl.innerHTML = "Running Diagnostics...<br>";
+            statusEl.className = "mt-2 text-sm font-bold text-blue-600";
+
+            const checks = [
+                { url: 'http://127.0.0.1:11100/', name: 'HTTP 11100 (Standard)' },
+                { url: 'https://127.0.0.1:11100/', name: 'HTTPS 11100' },
+                { url: 'http://localhost:11100/', name: 'HTTP Localhost' },
+                { url: 'https://localhost:8443/', name: 'HTTPS 8443 (WebAPI)' }
+            ];
+
+            for (const check of checks) {
+                try {
+                    statusEl.innerHTML += `Checking ${check.name}... `;
+                    // We use 'no-cors' mode just to check if it's reachable (opaque response)
+                    // If it fails completely (Network Error), it's blocked or down.
+                    const res = await fetch(check.url, { mode: 'no-cors' });
+
+                    statusEl.innerHTML += `<span class="text-green-600">REACHABLE ✅</span><br>`;
+                    console.log(`${check.name}: Reachable`);
+
+                    // If reachable via HTTPS, we should switch to that!
+                    if (check.name.includes('HTTPS') && check.name.includes('11100')) {
+                        alert("Great! Your RD Service supports HTTPS. We can fix the error.");
+                    }
+
+                } catch (e) {
+                    statusEl.innerHTML += `<span class="text-red-500">FAILED ❌ (${e.message})</span><br>`;
+                    console.error(`${check.name}: Failed`, e);
+                }
+            }
+
+            statusEl.innerHTML += "<br><strong>Done.</strong> If HTTP 11100 is Red, it is Mixed Content Blocking.";
+        }
+
         // --- CAPTURE (RD Service Port 11100) ---
         async function captureBiometric() {
             var statusEl = document.getElementById('status');
@@ -222,6 +259,82 @@
             statusEl.innerText = "Scanning directly from RD Service (Port 11100)...";
             statusEl.className = "mt-2 text-sm font-medium text-blue-600 animate-pulse";
 
+            // 1. Capture from RD Service (Localhost HTTP)
+            // HU20-AP requires this specific XML structure
+            var rdUrl = "http://127.0.0.1:11100/rd/capture";
+            var pidOptions = '<PidOptions ver="1.0"><Opts fCount="1" fType="2" iCount="0" pCount="0" format="0" pidVer="2.0" timeout="10000" posh="UNKNOWN" env="P" /><Demo></Demo></PidOptions>';
+
+            try {
+                const rdRes = await fetch(rdUrl, {
+                    method: 'CAPTURE', // RD Service uses CAPTURE method (or sometimes POST)
+                    headers: { 'Content-Type': 'text/xml', 'Accept': 'text/xml' },
+                    body: pidOptions
+                });
+
+                if (!rdRes.ok) throw new Error("RD Service Connection Failed (Is it running?)");
+
+                const pidXml = await rdRes.text();
+                // console.log("RD Service XML:", pidXml); 
+
+                // 2. Send XML to Backend for Parsing
+                statusEl.innerText = "Parsing Biometric Data...";
+
+                const parseRes = await fetch(API_BASE + '/biometrics/parse-xml', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + authToken,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ pid_xml: pidXml })
+                });
+
+                const parseData = await parseRes.json();
+
+                if (parseData.success) {
+                    capturedTemplate = parseData.data.template;
+                    deviceInfo = parseData.data.device_info.full_string;
+                    var quality = parseData.data.quality_score;
+
+                    templateEl.textContent = capturedTemplate.substring(0, 100) + "... (Total Length: " + capturedTemplate.length + ")";
+                    document.getElementById('device-info').textContent = deviceInfo;
+                    document.getElementById('quality-bar').style.width = quality + '%';
+                    document.getElementById('quality-text').textContent = quality + '%';
+
+                    statusEl.innerText = 'Capture Success ✅ (Size: ' + capturedTemplate.length + ')';
+                    statusEl.className = 'mt-2 text-sm font-medium success';
+
+                    document.getElementById('save-section').classList.remove('opacity-50', 'pointer-events-none');
+                } else {
+                    throw new Error(parseData.message || "Parsing Failed");
+                }
+
+            } catch (e) {
+                console.error("Capture Error:", e);
+                statusEl.innerHTML = `
+                    <span class="block font-bold">Capture Failed.</span>
+                    <span class="block text-xs">${e.message}</span>
+                    <button onclick="checkConnection()" class="mt-2 bg-gray-600 text-white px-3 py-1 text-xs rounded hover:bg-gray-700">Run Diagnostics</button>
+                    <ul class="list-disc pl-5 mt-2 text-xs">
+                        <li>Is the SecuGen RD Service installed & running?</li>
+                        <li><strong>Mixed Content:</strong> If you are on HTTPS, enable "Insecure Localhost" in Chrome Flags.</li>
+                    </ul>
+                `;
+                statusEl.className = "mt-2 text-sm error";
+            }
+        }
+
+        // --- SUBMIT ---
+        async function saveToBackend() {
+            const resBox = document.getElementById('api-result');
+            const pid = document.getElementById('p_id').value;
+
+            if (!capturedTemplate) {
+                resBox.classList.remove('hidden');
+                resBox.textContent = 'ERROR: No biometric data captured yet.';
+                resBox.className = 'mt-4 p-3 text-xs rounded border font-mono break-all bg-red-50 text-red-800 border-red-100';
+                return;
+            }
 
             resBox.classList.remove('hidden');
             resBox.textContent = 'Submitting...';
