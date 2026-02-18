@@ -96,7 +96,12 @@
                         <button onclick="captureBiometric()"
                             class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-2 rounded-lg text-xs flex flex-col items-center justify-center gap-1">
                             <span class="material-icons-round text-lg">touch_app</span>
-                            <span>Hardware Scan</span>
+                            <span>Hardware Scan (RD)</span>
+                        </button>
+                        <button onclick="captureBiometricWebAPI()"
+                            class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-2 rounded-lg text-xs flex flex-col items-center justify-center gap-1">
+                            <span class="material-icons-round text-lg">public</span>
+                            <span>WebAPI Scan (8443)</span>
                         </button>
                         <button onclick="simulateCapture()"
                             class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-2 rounded-lg text-xs flex flex-col items-center justify-center gap-1">
@@ -253,6 +258,44 @@
             }
 
             statusEl.innerHTML += "<br><strong>Done.</strong> If HTTP 11100 is Red, it is Mixed Content Blocking.";
+        }
+
+        // --- CAPTURE (WebAPI Port 8443) - LEGACY ---
+        function captureBiometricWebAPI() {
+            var statusEl = document.getElementById('status');
+            var templateEl = document.getElementById('iso-template');
+
+            statusEl.innerText = "Scanning via WebAPI (Port 8443)...";
+            statusEl.className = "mt-2 text-sm font-medium text-blue-600 animate-pulse";
+
+            var uri = "https://localhost:8443/SGIFPCapture";
+            var xmlhttp = new XMLHttpRequest();
+
+            xmlhttp.onreadystatechange = function () {
+                if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                    var fpobject = JSON.parse(xmlhttp.responseText);
+                    if (fpobject.ErrorCode == 0) {
+                        capturedTemplate = fpobject.TemplateBase64;
+                        deviceInfo = "SecuGen WebAPI (Port 8443)";
+                        var quality = fpobject.ImageQuality;
+
+                        templateEl.textContent = capturedTemplate.substring(0, 100) + "... (Total Length: " + capturedTemplate.length + ")";
+                        document.getElementById('device-info').textContent = deviceInfo;
+                        document.getElementById('quality-bar').style.width = quality + '%';
+                        document.getElementById('quality-text').textContent = quality + '%';
+
+                        statusEl.innerText = 'WebAPI Capture Success ✅ (Size: ' + capturedTemplate.length + ')';
+                        statusEl.className = 'mt-2 text-sm font-medium success';
+                        document.getElementById('save-section').classList.remove('opacity-50', 'pointer-events-none');
+                    } else {
+                        statusEl.innerText = "WebAPI Error: " + fpobject.ErrorCode;
+                        statusEl.className = "mt-2 text-sm error";
+                    }
+                }
+            }
+            var params = "Timeout=10000&Quality=40&licstr=&templateFormat=ISO";
+            xmlhttp.open("POST", uri, true);
+            xmlhttp.send(params);
         }
 
         // --- DEVICE INFO (Check Status) ---
