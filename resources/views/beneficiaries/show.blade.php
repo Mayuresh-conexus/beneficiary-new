@@ -490,77 +490,45 @@ function captureFP() {
 function verifyFP(capturedTemplate, storedTemplate) {
     console.log("Starting Verification process...");
     var statusMsg = document.getElementById('statusMessage');
+    statusMsg.innerText = "Verifying on Backend...";
+    statusMsg.className = "text-xs font-bold text-indigo-600 animate-pulse mt-1";
     
-    // Note: SecuGen WebAPI also has a Match Endpoint "SGIFPMatch(Template1, Template2)"
-    var uri = "https://localhost:8443/SGIFPMatch";
-    var xmlhttp = new XMLHttpRequest();
+    // We send BOTH templates to the backend for comparison
+    // Or, common practice: send capturedTemplate, and backend looks up stored based on Beneficiary ID
+    // But verify-biometric endpoint likely expects the captured template.
+    
+    const beneficiaryId = "{{ $beneficiary->id }}";
+    const csrf = document.querySelector('meta[name="csrf-token"]').content;
 
-    xmlhttp.onreadystatechange = function () {
-        if (xmlhttp.readyState == 4) {
-            console.log("Match Request Finished. Status:", xmlhttp.status);
-            if (xmlhttp.status == 200) {
-                var fpobject = JSON.parse(xmlhttp.responseText);
-                console.log("Match Result:", fpobject);
-                if (fpobject.ErrorCode == 0) {
-                    var score = fpobject.MatchingScore;
-                    console.log("Matching Score:", score);
-                    
-                    if (score >= 80) { // 80% Threshold
-                        handleSuccess(score);
-                    } else {
-                        handleFailure(score);
-                    }
-                } else {
-                    console.error("Matching Error Code:", fpobject.ErrorCode);
-                    alert("Matching Error: " + fpobject.ErrorCode);
-                    statusMsg.innerText = "Match Error #" + fpobject.ErrorCode;
-                }
-            } else {
-                console.error("Match Request Failed with status:", xmlhttp.status);
-                logClientError("Match Server Error", { status: xmlhttp.status });
-                statusMsg.innerText = "Match Server Error: " + xmlhttp.status;
-                statusMsg.className = "text-xs font-bold text-red-500 mt-1";
-            }
+    fetch(`/api/v1/beneficiary/${beneficiaryId}/verify-biometric`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrf,
+            'Authorization': 'Bearer ' + '{{ auth()->user()->createToken("temp_verify")->plainTextToken }}'
+        },
+        body: JSON.stringify({ 
+            biometric_template: capturedTemplate,
+            // stored_template: storedTemplate // Optional, backend might fetch from DB
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success' || data.match === true) { // check your backend response structure
+             handleSuccess(data.score || 100);
+             statusMsg.innerText = "Verification Success! ✅";
+             statusMsg.className = "text-xs font-bold text-emerald-600 mt-1";
+        } else {
+             handleFailure(data.score || 0);
+             statusMsg.innerText = "Verification Failed: " + (data.message || "Mismatch");
         }
-    };
-
-    xmlhttp.onerror = function(e) {
-        console.error("SecuGen Match Connection Failed:", e);
-        logClientError("Match Connection Failed", { error: e });
-        statusMsg.innerHTML = '<span class="text-amber-500 font-bold">Match Service Blocked. </span><a href="https://localhost:8443/SGIFPMatch" target="_blank" class="underline text-blue-600">Open Health Check</a>.<br><span class="text-[10px] text-gray-500 text-center block mt-1">(If "Error 10004" appears, close tab & retry here)</span>';
-        statusMsg.className = "text-xs mt-1 leading-tight";
-    };
-
-    xmlhttp.ontimeout = function() {
-        console.error("SecuGen Match Request Timed Out");
-        logClientError("Match Timed Out", { timeout: 15000 });
-        statusMsg.innerText = "Match Timed Out!";
+    })
+    .catch(error => {
+        console.error("Verification Error:", error);
+        statusMsg.innerText = "Verification Server Error";
         statusMsg.className = "text-xs font-bold text-red-500 mt-1";
-    };
-
-    // Log data size for debugging
-    console.log("Template1 Length:", capturedTemplate.length);
-    console.log("Template2 Length:", storedTemplate.length);
-    logClientError("Starting Match Request", { 
-        t1_len: capturedTemplate.length, 
-        t2_len: storedTemplate.length 
+        logClientError("Verification Failed", { error: error.message });
     });
-
-    // Determine Format: 
-    // If stored data starts with "FMR", it is ISO 19794-2. If not, try SG400.
-    // However, SecuGen usually auto-detects if we pass templateFormat=ISO
-    // Let's force ISO since your manual data is ISO ("FMR 20...").
-    
-    // Call Match
-    var params = "template1=" + encodeURIComponent(capturedTemplate) + 
-                 "&template2=" + encodeURIComponent(storedTemplate) + 
-                 "&templateFormat=ISO" + 
-                 "&licstr=";
-    
-    xmlhttp.open("POST", uri, true);
-    // xmlhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded"); 
-    xmlhttp.timeout = 15000; // 15s timeout
-    xmlhttp.send(params);
 }
 
 function testMatchService() {
