@@ -104,6 +104,10 @@
                             <span>Simulate (Test)</span>
                         </button>
                     </div>
+                    <button onclick="checkDeviceStatus()"
+                        class="w-full mt-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 rounded-lg text-xs border border-gray-300">
+                        Check Device Status (Is it Busy?)
+                    </button>
                     <p id="status" class="mt-2 text-sm font-medium text-gray-500">Status: Idle</p>
                 </div>
 
@@ -249,6 +253,42 @@
             }
 
             statusEl.innerHTML += "<br><strong>Done.</strong> If HTTP 11100 is Red, it is Mixed Content Blocking.";
+        }
+
+        // --- DEVICE INFO (Check Status) ---
+        async function checkDeviceStatus() {
+            var statusEl = document.getElementById('status');
+            statusEl.innerText = "Checking Device Status...";
+            statusEl.className = "mt-2 text-sm font-medium text-blue-600 animate-pulse";
+
+            // RD Service Info Endpoint (often DEVICEINFO or just GET /rd/info)
+            // SecuGen typical: DEVICEINFO
+            var rdUrl = "https://127.0.0.1:11100/rd/info";
+
+            try {
+                const res = await fetch(rdUrl, { method: 'DEVICEINFO' });
+                if (!res.ok) throw new Error("RD Info Request Failed");
+
+                const xmlText = await res.text();
+                // Parse XML
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+                const deviceInfo = xmlDoc.getElementsByTagName("DeviceInfo")[0];
+                const status = deviceInfo ? deviceInfo.getAttribute("status") : "Unknown";
+
+                if (status === "READY") {
+                    statusEl.innerText = "Device Status: READY ✅";
+                    statusEl.className = "mt-2 text-sm font-bold success";
+                } else {
+                    statusEl.innerText = "Device Status: " + status + " ❌ (Check 'SecuGen Exe' is closed)";
+                    statusEl.className = "mt-2 text-sm font-bold error";
+                }
+
+            } catch (e) {
+                console.error("Device Info Error:", e);
+                statusEl.innerText = "Device Check Failed: " + e.message;
+                statusEl.className = "mt-2 text-sm error";
+            }
         }
 
         // --- CAPTURE (RD Service Port 11100) ---
