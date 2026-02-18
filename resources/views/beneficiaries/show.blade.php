@@ -469,14 +469,14 @@ function captureFP() {
 }
 
 // --- 2. VERIFY (WebAPI 8443) ---
+// --- 2. VERIFY (Backend Python Bridge) ---
 async function verifyFP(capturedTemplate, storedTemplate) {
     var statusMsg = document.getElementById('statusMessage');
-    console.log("Starting Verification (WebAPI 8443)...");
+    console.log("Starting Verification (Backend Bridge)...");
     
     // Debug Templates
-    statusMsg.innerText = `Preparing verify (${capturedTemplate.length} vs ${storedTemplate.length})...`;
-    console.log("Captured Len:", capturedTemplate.length);
-    console.log("Stored Len:", storedTemplate.length);
+    statusMsg.innerText = `Verifying on Server (${capturedTemplate.length} vs ${storedTemplate.length})...`;
+    statusMsg.className = "text-xs font-bold text-indigo-600 animate-pulse mt-1";
 
     if (capturedTemplate.length < 100 || storedTemplate.length < 100) {
         statusMsg.innerText = "Error: Template too short!";
@@ -484,56 +484,55 @@ async function verifyFP(capturedTemplate, storedTemplate) {
         return;
     }
 
-    var MatchUrl = "https://localhost:8443/SGIFPMatch";
-
-    // Use URLSearchParams for x-www-form-urlencoded
-    var params = new URLSearchParams();
-    params.append('template1', capturedTemplate);
-    params.append('template2', storedTemplate);
-    params.append('templateFormat', 'ISO');
-    params.append('licstr', '');
+    const verificationUrl = "/api/v1/biometrics/verify";
+    const beneficiaryId = "{{ $beneficiary->id }}";
+    
+    // We use the temporary token created in blade
+    const token = '{{ auth()->user()->createToken("temp_verify")->plainTextToken }}';
 
     try {
-        const response = await fetch(MatchUrl, {
+        const response = await fetch(verificationUrl, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token,
+                'Accept': 'application/json'
             },
-            body: params
+            body: JSON.stringify({
+                captured_template: capturedTemplate,
+                stored_template: storedTemplate
+            })
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP Error: ${response.status}`);
-        }
+        const data = await response.json();
+        console.log("Match Response:", data);
 
-        const fpobject = await response.json();
-        console.log("Match Response:", fpobject);
-
-        if (fpobject.ErrorCode === 0) {
-            var score = fpobject.MatchingScore;
-            if (score >= 80) {
-                // SUCCESS: Log to backend
-                logVerificationSuccess();
+        if (response.ok && data.success) {
+            var score = data.score;
+            if (data.match === true) {
+                // SUCCESS
+                // Log it formally to the beneficiary log endpoint
+                // Note: We could merge these, but keeping separate for now to ensure logic flow
+                logVerificationSuccess(); 
+                
                 handleSuccess(score);
                 statusMsg.innerText = "Match Success! Score: " + score + " ✅";
                 statusMsg.className = "text-xs font-bold text-emerald-600 mt-1";
             } else {
                 handleFailure(score);
                 statusMsg.innerText = "Match Failed. Score: " + score;
+                statusMsg.className = "text-xs font-bold text-red-500 mt-1";
             }
         } else {
-            alert("Matching Error: " + fpobject.ErrorCode);
-            statusMsg.innerText = "Match Service Error #" + fpobject.ErrorCode;
-            statusMsg.className = "text-xs font-bold text-red-500 mt-1";
+            throw new Error(data.message || "Server Error");
         }
     } catch (error) {
-        console.error("Match Fetch Error:", error);
-        statusMsg.innerHTML = '<span class="text-red-500 font-bold block">Match Network Error.</span><a href="https://localhost:8443/SGIFPMatch" target="_blank" class="text-xs underline text-blue-600">Open Service Check</a>';
-        statusMsg.className = "text-xs mt-1 leading-tight";
+        console.error("Verification Error:", error);
+        statusMsg.innerText = "Verification Error: " + error.message;
+        statusMsg.className = "text-xs font-bold text-red-500 mt-1";
         
-        // Detailed Help
-        if (error.message.includes("Failed to fetch")) {
-            alert("Network Error calling Match Service (Port 8443).\n\n1. Check if SecuGen WebAPI service is running.\n2. Open https://localhost:8443/SGIFPMatch in a new tab and accept the certificate if prompted.");
+        if (error.message.includes("Match Script not found")) {
+             alert("System Error: The ID Matcher Script is missing on the server.");
         }
     }
 }

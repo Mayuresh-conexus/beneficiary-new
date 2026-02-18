@@ -83,4 +83,61 @@ class BiometricController extends Controller
             ], 500);
         }
     }
+    /**
+     * Verify Biometric Template using Python Backend
+     */
+    public function verifyBiometric(Request $request)
+    {
+        $request->validate([
+            'captured_template' => 'required|string',
+            'stored_template' => 'required|string',
+        ]);
+
+        $t1 = $request->captured_template;
+        $t2 = $request->stored_template;
+
+        // Path to Python Script
+        $scriptPath = storage_path('app/biometrics/match.py');
+
+        if (!file_exists($scriptPath)) {
+            return response()->json(['success' => false, 'message' => 'Match Script not found.'], 500);
+        }
+
+        try {
+            // Execution
+            // Note: Command line arguments might be too long for large templates. 
+            // Better to write to temp files if templates are huge, but for ISO (approx 500 chars), arguments are fine.
+            // standard ISO template is ~400-800 bytes base64. Limit is usually 8KB or 32KB. Should be safe.
+
+            $process = new \Symfony\Component\Process\Process([
+                'python',
+                $scriptPath,
+                $t1,
+                $t2
+            ]);
+
+            $process->run();
+
+            if (!$process->isSuccessful()) {
+                throw new \Symfony\Component\Process\Exception\ProcessFailedException($process);
+            }
+
+            $output = $process->getOutput();
+            $score = (int)trim($output);
+
+            return response()->json([
+                'success' => true,
+                'score' => $score,
+                'match' => ($score >= 80) // Threshold can be adjusted
+            ]);
+
+        }
+        catch (\Exception $e) {
+            Log::error('Biometric Match Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Match Algorithm Failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

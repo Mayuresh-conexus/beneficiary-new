@@ -86,6 +86,7 @@ Route::group(['prefix' => 'v1'], function () {
 
             // Biometrics
             Route::post('/biometrics/parse-xml', [App\Http\Controllers\Api\V1\BiometricController::class , 'parsePidXml']);
+            Route::post('/biometrics/verify', [App\Http\Controllers\Api\V1\BiometricController::class , 'verifyBiometric']);
             Route::get('/beneficiary/{id}/biometric', [V1BeneficiaryController::class , 'biometricData']);
             Route::post('/beneficiary/{id}/verify-biometric', [V1BeneficiaryController::class , 'logVerification']);
 
