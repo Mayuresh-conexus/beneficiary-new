@@ -312,13 +312,30 @@
 
             } catch (e) {
                 console.error("Capture Error:", e);
-                statusEl.innerHTML = `
-                    <span class="block font-bold">Capture Failed.</span>
-                    <span class="block text-xs">${e.message}</span>
-                    <button onclick="checkConnection()" class="mt-2 bg-gray-600 text-white px-3 py-1 text-xs rounded hover:bg-gray-700">Run Diagnostics</button>
-                    <ul class="list-disc pl-5 mt-2 text-xs">
+
+                let errorMsg = e.message;
+                let troubleshooting = "";
+
+                if (errorMsg.includes("Device NOT READY") || errorMsg.includes("Device Logic Error")) {
+                    errorMsg = "Device Plugged In but NOT Ready.";
+                    troubleshooting = `
+                        <li><strong>Unplug and Re-plug</strong> your scanner USB.</li>
+                        <li>Restart the <strong>SecuGen RD Service</strong> in Windows Services.</li>
+                        <li>Check if another app is using the scanner.</li>
+                    `;
+                } else if (errorMsg.includes("Connection Failed")) {
+                    troubleshooting = `
                         <li>Is the SecuGen RD Service installed & running?</li>
-                        <li><strong>Mixed Content:</strong> If you are on HTTPS, enable "Insecure Localhost" in Chrome Flags.</li>
+                        <li><strong>Mixed Content:</strong> Ensure 'Insecure Localhost' is Enabled in Chrome Flags.</li>
+                         <li><button onclick="checkConnection()" class="mt-1 bg-gray-600 text-white px-2 py-0.5 text-[10px] rounded hover:bg-gray-700">Run Diagnostics</button></li>
+                    `;
+                }
+
+                statusEl.innerHTML = `
+                    <span class="block font-bold text-red-600">Capture Failed.</span>
+                    <span class="block text-xs font-mono bg-red-50 p-1 rounded mt-1">${e.message}</span>
+                    <ul class="list-disc pl-5 mt-2 text-xs text-gray-600">
+                        ${troubleshooting}
                     </ul>
                 `;
                 statusEl.className = "mt-2 text-sm error";
