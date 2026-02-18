@@ -222,34 +222,49 @@
             statusEl.textContent = 'Scanning ports 11100-11105...';
             statusEl.className = 'mt-2 text-sm font-medium text-blue-600';
 
-            // Try ports 11100 to 11105 (Standard RD Service range)
+            // Try HTTP and HTTPS ports 11100 to 11105
             const ports = [11100, 11101, 11102, 11103, 11104, 11105];
+            const protocols = ['http', 'https']; // Try HTTPS first if possible, but usually HTTP is default
+
             let response = null;
             let activePort = null;
+            let activeProtocol = null;
 
-            for (const port of ports) {
-                try {
-                    statusEl.textContent = `Trying Port ${port}...`;
-                    const res = await fetch(`http://127.0.0.1:${port}/rd/capture`, {
-                        method: 'CAPTURE',
-                        headers: { 'Content-Type': 'text/xml' },
-                        body: '<PidOptions ver="1.0"><Opts fCount="1" fType="2" iCount="0" pCount="0" format="0" pidVer="2.0" timeout="10000" posh="UNKNOWN" env="P" /><Demo></Demo></PidOptions>'
-                    });
+            for (const protocol of protocols) {
+                if (response) break;
+                for (const port of ports) {
+                    try {
+                        statusEl.textContent = `Trying ${protocol.toUpperCase()} Port ${port}...`;
+                        const res = await fetch(`${protocol}://127.0.0.1:${port}/rd/capture`, {
+                            method: 'CAPTURE',
+                            headers: { 'Content-Type': 'text/xml' },
+                            body: '<PidOptions ver="1.0"><Opts fCount="1" fType="2" iCount="0" pCount="0" format="0" pidVer="2.0" timeout="10000" posh="UNKNOWN" env="P" /><Demo></Demo></PidOptions>'
+                        });
 
-                    if (res.ok) {
-                        response = res;
-                        activePort = port;
-                        break; // Found it!
+                        if (res.ok) {
+                            response = res;
+                            activePort = port;
+                            activeProtocol = protocol;
+                            break;
+                        }
+                    } catch (e) {
+                        // console.log(`Failed ${protocol}:${port}`);
                     }
-                } catch (e) {
-                    // Continue to next port
                 }
             }
 
             if (!response) {
-                statusEl.textContent = 'Connection Failed. Is the RD Service App installed & ready?';
+                statusEl.innerHTML = `
+                    <span class="block font-bold">Connection Failed via HTTP (Ports 11100-11105).</span>
+                    <ul class="list-disc pl-5 mt-2 text-xs">
+                        <li>Is the RD Service App installed & running?</li>
+                        <li><strong>HTTPS Issue:</strong> Your browser may be blocking access to local HTTP.</li>
+                        <li><a href="chrome://flags/#allow-insecure-localhost" target="_blank" class="underline">Enable Insecure Localhost</a> in Chrome Flags.</li>
+                        <li>Or click the lock icon in address bar -> Site Settings -> Allow Insecure Content.</li>
+                    </ul>
+                `;
                 statusEl.className = 'mt-2 text-sm font-medium error';
-                console.error("No RD Service found on ports 11100-11105");
+                console.error("No RD Service found on ports 11100-11105. Network Error or Mixed Content Block.");
                 return;
             }
 
