@@ -113,6 +113,10 @@
                         class="w-full mt-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 rounded-lg text-xs border border-gray-300">
                         Check Device Status (Is it Busy?)
                     </button>
+                    <button onclick="testWebAPIMatch()"
+                        class="w-full mt-2 bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-2 rounded-lg text-xs border border-blue-300">
+                        Test WebAPI Match (Port 8443)
+                    </button>
                     <p id="status" class="mt-2 text-sm font-medium text-gray-500">Status: Idle</p>
                 </div>
 
@@ -221,6 +225,56 @@
             statusEl.className = 'mt-2 text-sm font-bold text-amber-600';
 
             document.getElementById('save-section').classList.remove('opacity-50', 'pointer-events-none');
+        }
+
+        // --- WEBAPI MATCH TEST ---
+        function testWebAPIMatch() {
+            var statusEl = document.getElementById('status');
+            statusEl.innerText = "Testing WebAPI Match Endpoint...";
+            statusEl.className = "mt-2 text-sm font-medium text-blue-600 animate-pulse";
+
+            var uri = "https://localhost:8443/SGIFPMatch";
+            // Mock ISO Templates (Base64)
+            var t1 = "Rk1SACAyMAAAAAEUAAABLAGQAMUAxQEAAABUKUCuAAuKAECZABENAIEFADF5AEDmADP+AIETADb1AEEbAFPgAEEYAFpiAECwAGsA";
+            var t2 = "Rk1SACAyMAAAAAEUAAABLAGQAMUAxQEAAABUKUCuAAuKAECZABENAIEFADF5AEDmADP+AIETADb1AEEbAFPgAEEYAFpiAECwAGsA";
+
+            var xmlhttp = new XMLHttpRequest();
+            xmlhttp.onreadystatechange = function () {
+                if (xmlhttp.readyState == 4) {
+                    if (xmlhttp.status == 200) {
+                        try {
+                            var fpobject = JSON.parse(xmlhttp.responseText);
+                            if (fpobject.ErrorCode == 0) {
+                                statusEl.innerText = "Match Test Passed ✅ (Service Alive)";
+                                statusEl.className = "mt-2 text-sm font-bold success";
+                            } else {
+                                statusEl.innerText = "Match Test Logic Error: " + fpobject.ErrorCode;
+                                statusEl.className = "mt-2 text-sm font-bold text-amber-600";
+                            }
+                        } catch (e) {
+                            statusEl.innerText = "Match Test JSON Error";
+                            statusEl.className = "mt-2 text-sm error";
+                        }
+                    } else if (xmlhttp.status == 0) {
+                        statusEl.innerHTML = `Match Test Failed (Status 0): Network Error/Blocked.<br>
+                        <a href="https://localhost:8443/SGIFPMatch" target="_blank" class="underline text-blue-600">Click Here & Accept Certificate</a>`;
+                        statusEl.className = "mt-2 text-sm font-bold error";
+                    } else {
+                        statusEl.innerText = "Match Test HTTP Error: " + xmlhttp.status;
+                        statusEl.className = "mt-2 text-sm error";
+                    }
+                }
+            };
+
+            var params = "template1=" + encodeURIComponent(t1) +
+                "&template2=" + encodeURIComponent(t2) +
+                "&templateFormat=ISO" +
+                "&licstr=";
+
+            xmlhttp.open("POST", uri, true);
+            xmlhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            xmlhttp.timeout = 5000; // 5s timeout
+            xmlhttp.send(params);
         }
 
         // --- DIAGNOSTIC ---
