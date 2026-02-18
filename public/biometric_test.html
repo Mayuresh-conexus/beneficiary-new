@@ -214,95 +214,71 @@
             document.getElementById('save-section').classList.remove('opacity-50', 'pointer-events-none');
         }
 
-        // --- CAPTURE ---
-        async function captureBiometric() {
-            const statusEl = document.getElementById('status');
-            const templateEl = document.getElementById('iso-template');
+        // --- CAPTURE (WebAPI Port 8443) ---
+        function captureBiometric() {
+            var statusEl = document.getElementById('status');
+            var templateEl = document.getElementById('iso-template');
 
-            statusEl.textContent = 'Scanning ports 11100-11105...';
-            statusEl.className = 'mt-2 text-sm font-medium text-blue-600';
+            statusEl.innerText = "Scanning directly from device (Port 8443)...";
+            statusEl.className = "mt-2 text-sm font-medium text-blue-600 animate-pulse";
 
-            // Try HTTP and HTTPS ports 11100 to 11105
-            const ports = [11100, 11101, 11102, 11103, 11104, 11105];
-            const protocols = ['http', 'https']; // Try HTTPS first if possible, but usually HTTP is default
+            // Call SecuGen WebAPI (Localhost HTTPS)
+            // Matches working logic in show.blade.php
+            var uri = "https://localhost:8443/SGIFPCapture";
+            var xmlhttp = new XMLHttpRequest();
 
-            let response = null;
-            let activePort = null;
-            let activeProtocol = null;
+            xmlhttp.onreadystatechange = function () {
+                if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+                    var fpobject = JSON.parse(xmlhttp.responseText);
 
-            for (const protocol of protocols) {
-                if (response) break;
-                for (const port of ports) {
-                    try {
-                        statusEl.textContent = `Trying ${protocol.toUpperCase()} Port ${port}...`;
-                        const res = await fetch(`${protocol}://127.0.0.1:${port}/rd/capture`, {
-                            method: 'CAPTURE',
-                            headers: { 'Content-Type': 'text/xml' },
-                            body: '<PidOptions ver="1.0"><Opts fCount="1" fType="2" iCount="0" pCount="0" format="0" pidVer="2.0" timeout="10000" posh="UNKNOWN" env="P" /><Demo></Demo></PidOptions>'
-                        });
+                    if (fpobject.ErrorCode == 0) {
+                        // Capture Success
+                        capturedTemplate = fpobject.TemplateBase64;
+                        // WebAPI doesn't always return DeviceInfo, so we hardcode or infer
+                        deviceInfo = "SecuGen WebAPI (Port 8443)";
+                        var quality = fpobject.ImageQuality;
 
-                        if (res.ok) {
-                            response = res;
-                            activePort = port;
-                            activeProtocol = protocol;
-                            break;
-                        }
-                    } catch (e) {
-                        // console.log(`Failed ${protocol}:${port}`);
+                        templateEl.textContent = capturedTemplate;
+                        document.getElementById('device-info').textContent = deviceInfo;
+                        document.getElementById('quality-bar').style.width = quality + '%';
+                        document.getElementById('quality-text').textContent = quality + '%';
+
+                        statusEl.innerText = 'Capture Success ✅';
+                        statusEl.className = 'mt-2 text-sm font-medium success';
+
+                        document.getElementById('save-section').classList.remove('opacity-50', 'pointer-events-none');
+                    } else if (fpobject.ErrorCode == 10004) {
+                        statusEl.innerText = "License Error (10004). Use 'localhost' in URL.";
+                        statusEl.className = "mt-2 text-sm font-bold error";
+                        alert("Error 10004: URL Check Failed.\nThe SecuGen WebAPI only allows 'localhost' or '127.0.0.1'.");
+                    } else {
+                        statusEl.innerText = "Device Error: " + fpobject.ErrorCode;
+                        statusEl.className = "mt-2 text-sm font-bold error";
+                        alert("Scanner Error #" + fpobject.ErrorCode + ". Check connection.");
                     }
+                } else if (xmlhttp.status == 404) {
+                    statusEl.innerText = "Service Not Found (Is WebAPI running?)";
+                    statusEl.className = "mt-2 text-sm font-bold error";
                 }
             }
 
-            if (!response) {
-                statusEl.innerHTML = `
-                    <span class="block font-bold">Connection Failed via HTTP (Ports 11100-11105).</span>
-                    <ul class="list-disc pl-5 mt-2 text-xs">
-                        <li>Is the RD Service App installed & running?</li>
-                        <li><strong>HTTPS Issue:</strong> Your browser may be blocking access to local HTTP.</li>
-                        <li><a href="chrome://flags/#allow-insecure-localhost" target="_blank" class="underline">Enable Insecure Localhost</a> in Chrome Flags.</li>
-                        <li>Or click the lock icon in address bar -> Site Settings -> Allow Insecure Content.</li>
-                    </ul>
-                `;
-                statusEl.className = 'mt-2 text-sm font-medium error';
-                console.error("No RD Service found on ports 11100-11105. Network Error or Mixed Content Block.");
-                return;
-            }
+            // ISO Template format
+            var params = "Timeout=10000&Quality=40&licstr=&templateFormat=ISO";
 
-            try {
-                statusEl.textContent = `Connected on Port ${activePort}! Processing...`;
-                const text = await response.text();
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(text, "text/xml");
+            xmlhttp.open("POST", uri, true);
+            xmlhttp.timeout = 10000;
+            xmlhttp.send(params);
 
-                const respCode = xmlDoc.getElementsByTagName("Resp")[0]?.getAttribute("errCode");
-                if (respCode !== "0") {
-                    const errInfo = xmlDoc.getElementsByTagName("Resp")[0]?.getAttribute("errInfo") || 'Capture Failed';
-                    throw new Error(`${errInfo} (Code: ${respCode})`);
-                }
+            xmlhttp.onerror = function (e) {
+                console.error("SecuGen Capture Connection Failed:", e);
+                statusEl.innerHTML = '<span class="block font-bold">Cert Check Required.</span> <a href="https://localhost:8443/SGIFPCapture" target="_blank" class="underline text-blue-600">Click here, accept cert, then RETRY</a>.<br><span class="text-[10px] text-gray-500">(If you see Error 10004 in the new tab, that is GOOD. Close it and click Scan again.)</span>';
+                statusEl.className = "mt-2 text-sm error";
+            };
 
-                const biometricData = xmlDoc.getElementsByTagName("Data")[0]?.childNodes[0]?.nodeValue;
-                const devInfoRaw = xmlDoc.getElementsByTagName("DeviceInfo")[0];
-                const quality = xmlDoc.getElementsByTagName("Resp")[0]?.getAttribute("qScore");
-
-                if (biometricData) {
-                    capturedTemplate = biometricData;
-                    deviceInfo = (devInfoRaw?.getAttribute("dc") || "USB_Scanner") + ` (Port ${activePort})`;
-
-                    templateEl.textContent = biometricData;
-                    document.getElementById('device-info').textContent = deviceInfo;
-                    document.getElementById('quality-bar').style.width = quality + '%';
-                    document.getElementById('quality-text').textContent = quality + '%';
-
-                    statusEl.textContent = 'Capture Success ✅';
-                    statusEl.className = 'mt-2 text-sm font-medium success';
-
-                    document.getElementById('save-section').classList.remove('opacity-50', 'pointer-events-none');
-                }
-            } catch (err) {
-                statusEl.textContent = 'Capture Failed: ' + err.message;
-                statusEl.className = 'mt-2 text-sm font-medium error';
-                console.error(err);
-            }
+            xmlhttp.ontimeout = function () {
+                statusEl.innerText = "Capture Timed Out. Try again.";
+                statusEl.className = "mt-2 text-sm font-bold error";
+            };
         }
 
         // --- SUBMIT ---
