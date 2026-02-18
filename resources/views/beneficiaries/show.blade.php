@@ -418,71 +418,73 @@ function captureFP() {
     }
 
     var statusMsg = document.getElementById('statusMessage');
-    statusMsg.innerText = "Scanning directly from device...";
+    statusMsg.innerText = "Scanning from RD Service (Port 11100)...";
     statusMsg.className = "text-xs font-bold text-indigo-600 animate-pulse mt-1";
 
-    // 2. Call SecuGen WebAPI (Localhost)
-    // We try both ports 8443 (HTTPS) and 8000 (HTTP) usually, but standard is https://localhost:8443
-    var uri = "https://localhost:8443/SGIFPCapture";
-    var xmlhttp = new XMLHttpRequest();
-    
-    xmlhttp.onreadystatechange = function () {
-        if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-            var fpobject = JSON.parse(xmlhttp.responseText);
-            if (fpobject.ErrorCode == 0) {
-                // Scenario: Capture Successful -> Now Verification
-                
-                // DATA INTEGRITY CHECK: 
-                // A valid text template is usually < 2000 chars. 
-                // If it's > 10,000, it's likely a base64 IMAGE, which crashes the matcher.
-                if (storedTemplate.length > 5000) {
-                    console.error("Stored Template Too Large:", storedTemplate.length);
-                    logClientError("Data Error: Stored Data is Image Not Template", { size: storedTemplate.length });
-                    statusMsg.innerText = "Data Error: Stored data is an Image (200KB+), not a Template!";
-                    statusMsg.className = "text-xs font-bold text-red-600 mt-1";
-                    alert("CRITICAL DATA ERROR\n\nThe stored biometric data is " + storedTemplate.length + " characters long.\nThis indicates it is a RAW IMAGE, not a biometric template.\n\nThe Matcher expects a text template (approx 500 chars).\nPlease RE-ENROLL this beneficiary with a proper template.");
-                    return;
-                }
+    // 2. Call RD Service (Port 11100)
+    var rdUrl = "http://127.0.0.1:11100/rd/capture";
+    var pidOptions = '<PidOptions ver="1.0"><Opts fCount="1" fType="2" iCount="0" pCount="0" format="0" pidVer="2.0" timeout="10000" posh="UNKNOWN" env="P" /><Demo></Demo></PidOptions>';
 
-                statusMsg.innerText = "Capture Success. Verifying...";
-                verifyFP(fpobject.TemplateBase64, storedTemplate);
-            } else if (fpobject.ErrorCode == 10004) {
-                statusMsg.innerText = "License Error (10004). Use 'localhost' in URL.";
-                statusMsg.className = "text-xs font-bold text-red-500 mt-1";
-                alert("Error 10004: URL Check Failed.\n\nYou are accessing the app via an IP Address.\nThe SecuGen WebAPI only allows 'localhost' or '127.0.0.1' without a paid license.\n\nPlease open the app at: http://localhost:8000");
-            } else {
-                statusMsg.innerText = "Device Error: " + fpobject.ErrorCode;
-                statusMsg.className = "text-xs font-bold text-red-500 mt-1";
-                alert("Scanner Error #" + fpobject.ErrorCode + ". Check connection.");
-            }
-        } else if (xmlhttp.status == 404) {
-             statusMsg.innerText = "Service Not Found (Is WebAPI running?)";
-             statusMsg.className = "text-xs font-bold text-red-500 mt-1";
+    fetch(rdUrl, {
+        method: 'CAPTURE',
+        headers: { 'Content-Type': 'text/xml', 'Accept': 'text/xml' },
+        body: pidOptions
+    })
+    .then(response => {
+        if (!response.ok) throw new Error("RD Service Connection Failed");
+        return response.text();
+    })
+    .then(pidXml => {
+        // 3. Parse XML via Backend
+        statusMsg.innerText = "Processing Biometric Data...";
+        const csrf = document.querySelector('meta[name="csrf-token"]').content;
+
+        return fetch('/api/v1/biometrics/parse-xml', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'Authorization': 'Bearer ' + '{{ auth()->user()->createToken("temp_verify")->plainTextToken }}' // Or use session auth if route allows
+            },
+            body: JSON.stringify({ pid_xml: pidXml })
+        });
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+             var capturedTemplate = data.data.template;
+             
+             // Check Stored Data Integrity
+             if (storedTemplate.length > 5000) {
+                 statusMsg.innerText = "Error: Stored data is Image!";
+                 statusMsg.className = "text-xs font-bold text-red-600 mt-1";
+                 alert("CRITICAL: Stored data is an Image, not a Template. Re-enroll required.");
+                 return;
+             }
+             if (storedTemplate.startsWith("MOCK_")) {
+                 statusMsg.innerText = "Error: Cannot verify against MOCK data.";
+                 statusMsg.className = "text-xs font-bold text-amber-600 mt-1";
+                 alert("Verify Failed: Stored data is MOCK/SIMULATION.");
+                 return;
+             }
+
+             statusMsg.innerText = "Verifying...";
+             verifyFP(capturedTemplate, storedTemplate);
+        } else {
+            throw new Error(data.message || "XML Parsing Failed");
         }
-    }
-    
-    // ISO Template format (Matches "FMR 20" starting header in your DB)
-    // Reduced Timeout to 5s and Quality to 40 for faster capture
-    var params = "Timeout=5000&Quality=40&licstr=&templateFormat=ISO";
-    
-    xmlhttp.open("POST", uri, true);
-    xmlhttp.timeout = 10000; // 10s timeout for the network request itself
-    xmlhttp.send(params);
-
-    xmlhttp.onerror = function (e) {
-        console.error("SecuGen Capture Connection Failed:", e);
-        logClientError("Capture Connection Failed", { error: e });
-        // SecuGen WebAPI requires accepting the self-signed certificate on localhost
-        statusMsg.innerHTML = '<span class="text-amber-500 font-bold">Cert Check Required. </span><a href="https://localhost:8443/SGIFPCapture" target="_blank" class="underline text-blue-600">Click here, accept cert, then RETRY</a>.<br><span class="text-[10px] text-gray-500">(If you see Error 10004 in the new tab, that is GOOD. Close it and click Scan again.)</span>';
+    })
+    .catch(error => {
+        console.error("Capture Error:", error);
+        statusMsg.innerHTML = '<span class="text-red-500 font-bold">Capture Failed. </span><span class="text-xs">Is RD Service (11100) running?</span>';
         statusMsg.className = "text-xs mt-1 leading-tight";
-    };
-
-    xmlhttp.ontimeout = function () {
-        console.error("SecuGen Capture Request Timed Out");
-        logClientError("Capture Timed Out", { timeout: 15000 });
-        statusMsg.innerText = "Capture Timed Out. Try again.";
-        statusMsg.className = "text-xs font-bold text-red-500 mt-1";
-    };
+        logClientError("Capture/Parse Failed", { error: error.message });
+        
+        // Check for Mixed Content
+        if (window.location.protocol === 'https:') {
+             alert("HTTPS Mixed Content Block?\n\nEnable 'Insecure Localhost' in chrome://flags if scanning fails.");
+        }
+    });
 }
 
 function verifyFP(capturedTemplate, storedTemplate) {

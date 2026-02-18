@@ -208,83 +208,20 @@
             document.getElementById('quality-text').textContent = '100%';
 
             const statusEl = document.getElementById('status');
-            statusEl.textContent = 'Simulation Success 🧪';
-            statusEl.className = 'mt-2 text-sm font-medium text-amber-600';
+            statusEl.textContent = 'Simulation Success 🧪 (WARNING: INVALID FOR REAL VERIFICATION)';
+            statusEl.className = 'mt-2 text-sm font-bold text-amber-600';
 
             document.getElementById('save-section').classList.remove('opacity-50', 'pointer-events-none');
         }
 
-        // --- CAPTURE (WebAPI Port 8443) ---
-        function captureBiometric() {
+        // --- CAPTURE (RD Service Port 11100) ---
+        async function captureBiometric() {
             var statusEl = document.getElementById('status');
             var templateEl = document.getElementById('iso-template');
 
-            statusEl.innerText = "Scanning directly from device (Port 8443)...";
+            statusEl.innerText = "Scanning directly from RD Service (Port 11100)...";
             statusEl.className = "mt-2 text-sm font-medium text-blue-600 animate-pulse";
 
-            // Call SecuGen WebAPI (Localhost HTTPS)
-            // Matches working logic in show.blade.php
-            var uri = "https://localhost:8443/SGIFPCapture";
-            var xmlhttp = new XMLHttpRequest();
-
-            xmlhttp.onreadystatechange = function () {
-                if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-                    var fpobject = JSON.parse(xmlhttp.responseText);
-
-                    if (fpobject.ErrorCode == 0) {
-                        // Capture Success
-                        capturedTemplate = fpobject.TemplateBase64;
-                        // WebAPI doesn't always return DeviceInfo, so we hardcode or infer
-                        deviceInfo = "SecuGen WebAPI (Port 8443)";
-                        var quality = fpobject.ImageQuality;
-
-                        templateEl.textContent = capturedTemplate;
-                        document.getElementById('device-info').textContent = deviceInfo;
-                        document.getElementById('quality-bar').style.width = quality + '%';
-                        document.getElementById('quality-text').textContent = quality + '%';
-
-                        statusEl.innerText = 'Capture Success ✅';
-                        statusEl.className = 'mt-2 text-sm font-medium success';
-
-                        document.getElementById('save-section').classList.remove('opacity-50', 'pointer-events-none');
-                    } else if (fpobject.ErrorCode == 10004) {
-                        statusEl.innerText = "License Error (10004). Use 'localhost' in URL.";
-                        statusEl.className = "mt-2 text-sm font-bold error";
-                        alert("Error 10004: URL Check Failed.\nThe SecuGen WebAPI only allows 'localhost' or '127.0.0.1'.");
-                    } else {
-                        statusEl.innerText = "Device Error: " + fpobject.ErrorCode;
-                        statusEl.className = "mt-2 text-sm font-bold error";
-                        alert("Scanner Error #" + fpobject.ErrorCode + ". Check connection.");
-                    }
-                } else if (xmlhttp.status == 404) {
-                    statusEl.innerText = "Service Not Found (Is WebAPI running?)";
-                    statusEl.className = "mt-2 text-sm font-bold error";
-                }
-            }
-
-            // ISO Template format
-            var params = "Timeout=10000&Quality=40&licstr=&templateFormat=ISO";
-
-            xmlhttp.open("POST", uri, true);
-            xmlhttp.timeout = 10000;
-            xmlhttp.send(params);
-
-            xmlhttp.onerror = function (e) {
-                console.error("SecuGen Capture Connection Failed:", e);
-                statusEl.innerHTML = '<span class="block font-bold">Cert Check Required.</span> <a href="https://localhost:8443/SGIFPCapture" target="_blank" class="underline text-blue-600">Click here, accept cert, then RETRY</a>.<br><span class="text-[10px] text-gray-500">(If you see Error 10004 in the new tab, that is GOOD. Close it and click Scan again.)</span>';
-                statusEl.className = "mt-2 text-sm error";
-            };
-
-            xmlhttp.ontimeout = function () {
-                statusEl.innerText = "Capture Timed Out. Try again.";
-                statusEl.className = "mt-2 text-sm font-bold error";
-            };
-        }
-
-        // --- SUBMIT ---
-        async function saveToBackend() {
-            const pid = document.getElementById('p_id').value;
-            const resBox = document.getElementById('api-result');
 
             resBox.classList.remove('hidden');
             resBox.textContent = 'Submitting...';
