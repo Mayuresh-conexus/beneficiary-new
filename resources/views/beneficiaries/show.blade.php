@@ -508,6 +508,7 @@ function verifyFP(capturedTemplate, storedTemplate) {
                  "&licstr=";
     
     xmlhttp.open("POST", uri, true);
+    xmlhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
     xmlhttp.timeout = 10000;
     xmlhttp.send(params);
 }
