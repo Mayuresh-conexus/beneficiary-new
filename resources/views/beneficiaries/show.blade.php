@@ -469,48 +469,73 @@ function captureFP() {
 }
 
 // --- 2. VERIFY (WebAPI 8443) ---
-function verifyFP(capturedTemplate, storedTemplate) {
-    console.log("Starting Verification process (WebAPI)...");
+async function verifyFP(capturedTemplate, storedTemplate) {
     var statusMsg = document.getElementById('statusMessage');
+    console.log("Starting Verification (WebAPI 8443)...");
     
-    var uri = "https://localhost:8443/SGIFPMatch";
-    var xmlhttp = new XMLHttpRequest();
+    // Debug Templates
+    statusMsg.innerText = `Preparing verify (${capturedTemplate.length} vs ${storedTemplate.length})...`;
+    console.log("Captured Len:", capturedTemplate.length);
+    console.log("Stored Len:", storedTemplate.length);
 
-    xmlhttp.onreadystatechange = function () {
-        if (xmlhttp.readyState == 4) {
-            if (xmlhttp.status == 200) {
-                var fpobject = JSON.parse(xmlhttp.responseText);
-                if (fpobject.ErrorCode == 0) {
-                    var score = fpobject.MatchingScore;
-                    if (score >= 80) {
-                        // SUCCESS: Log to backend
-                        logVerificationSuccess();
-                        handleSuccess(score);
-                         statusMsg.innerText = "Matched! Score: " + score;
-                         statusMsg.className = "text-xs font-bold text-emerald-600 mt-1";
-                    } else {
-                        handleFailure(score);
-                    }
-                } else {
-                    alert("Matching Error: " + fpobject.ErrorCode);
-                    statusMsg.innerText = "Match Error #" + fpobject.ErrorCode;
-                }
-            } else {
-                statusMsg.innerText = "Match Service Error: " + xmlhttp.status;
-            }
+    if (capturedTemplate.length < 100 || storedTemplate.length < 100) {
+        statusMsg.innerText = "Error: Template too short!";
+        alert("Verification Error: One of the templates is invalid or empty.");
+        return;
+    }
+
+    var MatchUrl = "https://localhost:8443/SGIFPMatch";
+
+    // Use URLSearchParams for x-www-form-urlencoded
+    var params = new URLSearchParams();
+    params.append('template1', capturedTemplate);
+    params.append('template2', storedTemplate);
+    params.append('templateFormat', 'ISO');
+    params.append('licstr', '');
+
+    try {
+        const response = await fetch(MatchUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: params
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP Error: ${response.status}`);
         }
-    };
 
-    // Both templates must be ISO
-    var params = "template1=" + encodeURIComponent(capturedTemplate) + 
-                 "&template2=" + encodeURIComponent(storedTemplate) + 
-                 "&templateFormat=ISO" + 
-                 "&licstr=";
-    
-    xmlhttp.open("POST", uri, true);
-    xmlhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-    xmlhttp.timeout = 10000;
-    xmlhttp.send(params);
+        const fpobject = await response.json();
+        console.log("Match Response:", fpobject);
+
+        if (fpobject.ErrorCode === 0) {
+            var score = fpobject.MatchingScore;
+            if (score >= 80) {
+                // SUCCESS: Log to backend
+                logVerificationSuccess();
+                handleSuccess(score);
+                statusMsg.innerText = "Match Success! Score: " + score + " ✅";
+                statusMsg.className = "text-xs font-bold text-emerald-600 mt-1";
+            } else {
+                handleFailure(score);
+                statusMsg.innerText = "Match Failed. Score: " + score;
+            }
+        } else {
+            alert("Matching Error: " + fpobject.ErrorCode);
+            statusMsg.innerText = "Match Service Error #" + fpobject.ErrorCode;
+            statusMsg.className = "text-xs font-bold text-red-500 mt-1";
+        }
+    } catch (error) {
+        console.error("Match Fetch Error:", error);
+        statusMsg.innerHTML = '<span class="text-red-500 font-bold block">Match Network Error.</span><a href="https://localhost:8443/SGIFPMatch" target="_blank" class="text-xs underline text-blue-600">Open Service Check</a>';
+        statusMsg.className = "text-xs mt-1 leading-tight";
+        
+        // Detailed Help
+        if (error.message.includes("Failed to fetch")) {
+            alert("Network Error calling Match Service (Port 8443).\n\n1. Check if SecuGen WebAPI service is running.\n2. Open https://localhost:8443/SGIFPMatch in a new tab and accept the certificate if prompted.");
+        }
+    }
 }
 
 // --- 3. LOG SUCCESS TO BACKEND ---
