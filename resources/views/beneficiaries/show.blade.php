@@ -421,8 +421,9 @@ function captureFP() {
     statusMsg.innerText = "Scanning from RD Service (Port 11100)...";
     statusMsg.className = "text-xs font-bold text-indigo-600 animate-pulse mt-1";
 
-    // 2. Call RD Service (Port 11100)
-    var rdUrl = "http://127.0.0.1:11100/rd/capture";
+    // 2. Call RD Service (Port 11100 HTTPS)
+    // Using HTTPS to avoid mixed content errors
+    var rdUrl = "https://127.0.0.1:11100/rd/capture";
     var pidOptions = '<PidOptions ver="1.0"><Opts fCount="1" fType="2" iCount="0" pCount="0" format="0" pidVer="2.0" timeout="10000" posh="UNKNOWN" env="P" /><Demo></Demo></PidOptions>';
 
     fetch(rdUrl, {

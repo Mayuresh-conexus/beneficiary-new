@@ -259,9 +259,10 @@
             statusEl.innerText = "Scanning directly from RD Service (Port 11100)...";
             statusEl.className = "mt-2 text-sm font-medium text-blue-600 animate-pulse";
 
-            // 1. Capture from RD Service (Localhost HTTP)
+            // 1. Capture from RD Service (Localhost HTTPS)
             // HU20-AP requires this specific XML structure
-            var rdUrl = "http://127.0.0.1:11100/rd/capture";
+            // Using HTTPS to avoid Mixed Content Blocking
+            var rdUrl = "https://127.0.0.1:11100/rd/capture";
             var pidOptions = '<PidOptions ver="1.0"><Opts fCount="1" fType="2" iCount="0" pCount="0" format="0" pidVer="2.0" timeout="10000" posh="UNKNOWN" env="P" /><Demo></Demo></PidOptions>';
 
             try {
