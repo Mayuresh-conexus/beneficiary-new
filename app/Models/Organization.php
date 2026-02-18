@@ -37,4 +37,9 @@ class Organization extends Model
     {
         return $this->hasMany(Project::class);
     }
+
+    public function beneficiaries()
+    {
+        return $this->hasManyThrough(Beneficiary::class , Project::class , 'organization_id', 'assigned_project_id');
+    }
 }

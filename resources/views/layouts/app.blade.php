@@ -8,19 +8,112 @@
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+    <style>
+        :root {
+            --color-primary: 30 30 138;
+            /* Default Sidebar (Modern Dark) */
+            --sidebar-bg: linear-gradient(180deg, #171719 0%, #171719 50%, #252529 100%);
+            --sidebar-text: #ffffff;
+            --sidebar-hover: rgba(255, 255, 255, 0.05);
+            --sidebar-active: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Impact Blue Theme (Legacy) */
+        [data-sidebar="blue"] {
+            --sidebar-bg: rgb(30, 30, 138);
+            --sidebar-text: #ffffff;
+            --sidebar-hover: rgba(255, 255, 255, 0.1);
+            --sidebar-active: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Dark Sidebar Theme */
+        [data-sidebar="dark"] {
+            --sidebar-bg: #1e293b; /* Slate 800 - Premium Dark */
+            --sidebar-text: #e2e8f0; /* Slate 200 */
+            --sidebar-hover: #334155; /* Slate 700 */
+            --sidebar-active: #2563eb; /* Blue 600 */
+        }
+        
+        /* Premium Midnight Theme */
+        [data-sidebar="midnight"] {
+            --sidebar-bg: #0f172a; /* Slate 900 */
+            --sidebar-text: #cbd5e1; /* Slate 300 */
+            --sidebar-hover: #1e293b; /* Slate 800 */
+            --sidebar-active: #3b82f6; /* Blue 500 */
+        }
+
+        /* Shine Effect */
+        .shining-text {
+            background: linear-gradient(90deg, #94a3b8 0%, #ffffff 40%, #ffffff 50%, #ffffff 60%, #94a3b8 100%);
+            background-size: 200% auto;
+            color: #fff;
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shine 3s linear infinite;
+            font-weight: 800;
+        }
+        
+        [data-sidebar="blue"] .shining-text {
+             background: linear-gradient(90deg, #94a3b8 0%, #cbd5e1 40%, #ffffff 50%, #cbd5e1 60%, #94a3b8 100%);
+             background-size: 200% auto;
+             -webkit-background-clip: text;
+             -webkit-text-fill-color: transparent;
+        }
+
+        @keyframes shine {
+            to {
+                background-position: 200% center;
+            }
+        }
+        
+        /* Box Shine */
+        .shining-box {
+            position: relative;
+            overflow: hidden;
+        }
+        .shining-box::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -150%;
+            width: 150%;
+            height: 100%;
+            background: linear-gradient(
+                90deg, 
+                transparent 0%, 
+                rgba(255, 255, 255, 0.2) 50%, 
+                transparent 100%
+            );
+            transform: skewX(-25deg);
+            animation: boxShine 6s infinite;
+            pointer-events: none;
+        }
+        
+        @keyframes boxShine {
+            0% { left: -150%; }
+            20% { left: 150%; }
+            100% { left: 150%; }
+        }
+    </style>
     <script>
+        // Apply saved theme immediately
+        const savedColor = localStorage.getItem('theme_color');
+        if(savedColor) document.documentElement.style.setProperty('--color-primary', savedColor);
+        
+        const savedSidebar = localStorage.getItem('sidebar_theme');
+        if(savedSidebar) document.documentElement.setAttribute('data-sidebar', savedSidebar);
+
         tailwind.config = {
             darkMode: "class",
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#1e1e8a",
+                        "primary": "rgb(var(--color-primary))",
                         "background-light": "#f6f6f8",
                         "background-dark": "#121220",
                     },
-                    fontFamily: {
-                        "display": ["Inter"]
-                    },
+                    fontFamily: { "display": ["Inter"] },
                     borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
                 },
             },
@@ -31,95 +124,114 @@
 </head>
 <body class="font-display bg-background-light text-slate-800 min-h-screen flex">
     <!-- Sidebar -->
-    <aside class="w-64 bg-primary text-white flex flex-col transition-all duration-300 ease-in-out shrink-0 sticky top-0 h-screen">
-        <div class="p-6 flex items-center gap-3">
-            <div class="w-10 h-10 bg-white/20 rounded flex items-center justify-center">
-                <span class="material-icons text-white">admin_panel_settings</span>
+    <aside class="w-64 flex flex-col transition-all duration-300 ease-in-out shrink-0 sticky top-0 h-screen" 
+           style="background: var(--sidebar-bg); color: var(--sidebar-text);">
+        <div class="px-4 pt-6 pb-2">
+            <div class="shining-box rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md p-3 flex flex-col items-center gap-3 group transition-all hover:bg-white/10">
+                <!-- App Logo Container -->
+                <div class="bg-white p-1.5 rounded-lg shadow-lg ring-1 ring-black/5">
+                    <img src="{{ asset('images/logo.png') }}" alt="Logo" class="h-10 w-auto object-contain">
+                </div>
+                
+                <!-- App Text -->
+                <div class="text-center">
+                    <p class="text-[10px] font-bold uppercase tracking-[0.2em] shining-text leading-tight opacity-90">Beneficiary App</p>
+                </div>
             </div>
-            <span class="font-bold text-xl tracking-tight">ImpactNexus</span>
         </div>
-        <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+        <nav class="flex-1 px-4 py-2 space-y-1 overflow-y-auto">
             @php $current = Route::currentRouteName(); @endphp
 
-            <a class="flex items-center gap-3 px-4 py-3 {{ $current === 'dashboard' ? 'bg-white/10' : 'hover:bg-white/5 text-white/70 hover:text-white' }} rounded-lg transition-colors" href="{{ route('dashboard') }}">
-                <span class="material-icons text-sm">dashboard</span>
-                <span class="text-sm font-medium">Dashboard</span>
+            <a class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group" href="{{ route('dashboard') }}"
+               style="{{ $current === 'dashboard' ? 'background-color: var(--sidebar-active);' : '' }}">
+                <span class="material-icons text-sm group-hover:opacity-100" style="opacity: {{ $current === 'dashboard' ? '1' : '0.7' }}">dashboard</span>
+                <span class="text-sm font-medium group-hover:opacity-100" style="opacity: {{ $current === 'dashboard' ? '1' : '0.7' }}">Dashboard</span>
             </a>
             @if(auth()->user()->hasPermissionTo('view_organizations'))
-            <a class="flex items-center gap-3 px-4 py-3 {{ str_starts_with($current, 'organizations') ? 'bg-white/10' : 'hover:bg-white/5 text-white/70 hover:text-white' }} rounded-lg transition-colors" href="{{ route('organizations.index') }}">
-                <span class="material-icons text-sm">corporate_fare</span>
-                <span class="text-sm font-medium">Organizations</span>
+            <a class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group" href="{{ route('organizations.index') }}"
+                style="{{ str_starts_with($current, 'organizations') ? 'background-color: var(--sidebar-active);' : '' }}">
+                <span class="material-icons text-sm group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'organizations') ? '1' : '0.7' }}">corporate_fare</span>
+                <span class="text-sm font-medium group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'organizations') ? '1' : '0.7' }}">Organizations</span>
             </a>
             @endif
             @if(auth()->user()->hasPermissionTo('view_projects'))
-            <a class="flex items-center gap-3 px-4 py-3 {{ str_starts_with($current, 'programs') ? 'bg-white/10' : 'hover:bg-white/5 text-white/70 hover:text-white' }} rounded-lg transition-colors" href="{{ route('programs.index') }}">
-                <span class="material-icons text-sm">account_tree</span>
-                <span class="text-sm font-medium">Programs</span>
+            <a class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group" href="{{ route('programs.index') }}"
+                style="{{ str_starts_with($current, 'programs') ? 'background-color: var(--sidebar-active);' : '' }}">
+                <span class="material-icons text-sm group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'programs') ? '1' : '0.7' }}">account_tree</span>
+                <span class="text-sm font-medium group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'programs') ? '1' : '0.7' }}">Programs</span>
             </a>
             @endif
             @if(auth()->user()->hasPermissionTo('view_projects'))
-            <a class="flex items-center gap-3 px-4 py-3 {{ str_starts_with($current, 'packages') ? 'bg-white/10' : 'hover:bg-white/5 text-white/70 hover:text-white' }} rounded-lg transition-colors" href="{{ route('packages.index') }}">
-                <span class="material-icons text-sm">inventory_2</span>
-                <span class="text-sm font-medium">Packages</span>
+            <a class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group" href="{{ route('packages.index') }}"
+                style="{{ str_starts_with($current, 'packages') ? 'background-color: var(--sidebar-active);' : '' }}">
+                <span class="material-icons text-sm group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'packages') ? '1' : '0.7' }}">inventory_2</span>
+                <span class="text-sm font-medium group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'packages') ? '1' : '0.7' }}">Packages</span>
             </a>
             @endif
             @if(auth()->user()->hasPermissionTo('view_projects'))
-            <a class="flex items-center gap-3 px-4 py-3 {{ str_starts_with($current, 'projects') ? 'bg-white/10' : 'hover:bg-white/5 text-white/70 hover:text-white' }} rounded-lg transition-colors" href="{{ route('projects.index') }}">
-                <span class="material-icons text-sm">assignment</span>
-                <span class="text-sm font-medium">Projects</span>
+            <a class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group" href="{{ route('projects.index') }}"
+                style="{{ str_starts_with($current, 'projects') ? 'background-color: var(--sidebar-active);' : '' }}">
+                <span class="material-icons text-sm group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'projects') ? '1' : '0.7' }}">assignment</span>
+                <span class="text-sm font-medium group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'projects') ? '1' : '0.7' }}">Projects</span>
             </a>
             @endif
             @if(auth()->user()->hasPermissionTo('view_beneficiaries'))
-            <a class="flex items-center gap-3 px-4 py-3 {{ str_starts_with($current, 'beneficiaries') ? 'bg-white/10' : 'hover:bg-white/5 text-white/70 hover:text-white' }} rounded-lg transition-colors" href="{{ route('beneficiaries.index') }}">
-                <span class="material-icons text-sm">groups</span>
-                <span class="text-sm font-medium">Beneficiaries</span>
+            <a class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group" href="{{ route('beneficiaries.index') }}"
+                style="{{ str_starts_with($current, 'beneficiaries') ? 'background-color: var(--sidebar-active);' : '' }}">
+                <span class="material-icons text-sm group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'beneficiaries') ? '1' : '0.7' }}">groups</span>
+                <span class="text-sm font-medium group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'beneficiaries') ? '1' : '0.7' }}">Beneficiaries</span>
             </a>
             @endif
             @if(auth()->user()->hasPermissionTo('view_projects'))
-            <a class="flex items-center gap-3 px-4 py-3 {{ str_starts_with($current, 'reports') ? 'bg-white/10' : 'hover:bg-white/5 text-white/70 hover:text-white' }} rounded-lg transition-colors" href="{{ route('reports.index') }}">
-                <span class="material-icons text-sm">assessment</span>
-                <span class="text-sm font-medium">Reports</span>
+            <a class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group" href="{{ route('reports.index') }}"
+                style="{{ str_starts_with($current, 'reports') ? 'background-color: var(--sidebar-active);' : '' }}">
+                <span class="material-icons text-sm group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'reports') ? '1' : '0.7' }}">assessment</span>
+                <span class="text-sm font-medium group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'reports') ? '1' : '0.7' }}">Reports</span>
             </a>
             @endif
-            <div class="pt-4 mt-4 border-t border-white/10">
-                <a class="flex items-center gap-3 px-4 py-3 {{ str_starts_with($current, 'notifications') ? 'bg-white/10' : 'hover:bg-white/5 text-white/70 hover:text-white' }} rounded-lg transition-colors" href="{{ route('notifications.index') }}">
-                    <span class="material-icons text-sm">notifications</span>
-                    <span class="text-sm font-medium">Notifications</span>
+            <div class="pt-4 mt-4 border-t border-white/10" style="border-color: var(--sidebar-hover)">
+                <a class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group" href="{{ route('notifications.index') }}"
+                    style="{{ str_starts_with($current, 'notifications') ? 'background-color: var(--sidebar-active);' : '' }}">
+                    <span class="material-icons text-sm group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'notifications') ? '1' : '0.7' }}">notifications</span>
+                    <span class="text-sm font-medium group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'notifications') ? '1' : '0.7' }}">Notifications</span>
                     <span id="sidebar-notif-badge" class="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full px-1.5 py-0.5 leading-none hidden"></span>
                 </a>
                 
                 @if(auth()->user()->hasPermissionTo('view_users'))
-                <a class="flex items-center gap-3 px-4 py-3 {{ str_starts_with($current, 'users') ? 'bg-white/10' : 'hover:bg-white/5 text-white/70 hover:text-white' }} rounded-lg transition-colors" href="{{ route('users.index') }}">
-                    <span class="material-icons text-sm">people</span>
-                    <span class="text-sm font-medium">User Management</span>
+                <a class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group" href="{{ route('users.index') }}"
+                    style="{{ str_starts_with($current, 'users') ? 'background-color: var(--sidebar-active);' : '' }}">
+                    <span class="material-icons text-sm group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'users') ? '1' : '0.7' }}">people</span>
+                    <span class="text-sm font-medium group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'users') ? '1' : '0.7' }}">User Management</span>
                 </a>
                 @endif
 
                 @if(auth()->user()->hasPermissionTo('view_roles'))
-                <a class="flex items-center gap-3 px-4 py-3 {{ str_starts_with($current, 'roles') ? 'bg-white/10' : 'hover:bg-white/5 text-white/70 hover:text-white' }} rounded-lg transition-colors" href="{{ route('roles.index') }}">
-                    <span class="material-icons text-sm">security</span>
-                    <span class="text-sm font-medium">Roles & Permissions</span>
+                <a class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group" href="{{ route('roles.index') }}"
+                    style="{{ str_starts_with($current, 'roles') ? 'background-color: var(--sidebar-active);' : '' }}">
+                    <span class="material-icons text-sm group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'roles') ? '1' : '0.7' }}">security</span>
+                    <span class="text-sm font-medium group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'roles') ? '1' : '0.7' }}">Roles & Permissions</span>
                 </a>
                 @endif
 
-                <a class="flex items-center gap-3 px-4 py-3 {{ str_starts_with($current, 'audit') ? 'bg-white/10' : 'hover:bg-white/5 text-white/70 hover:text-white' }} rounded-lg transition-colors" href="{{ route('audit.index') }}">
-                    <span class="material-icons text-sm">history</span>
-                    <span class="text-sm font-medium">Audit Logs</span>
+                <a class="flex items-center gap-3 px-4 py-3 rounded-lg transition-colors group" href="{{ route('audit.index') }}"
+                    style="{{ str_starts_with($current, 'audit') ? 'background-color: var(--sidebar-active);' : '' }}">
+                    <span class="material-icons text-sm group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'audit') ? '1' : '0.7' }}">history</span>
+                    <span class="text-sm font-medium group-hover:opacity-100" style="opacity: {{ str_starts_with($current, 'audit') ? '1' : '0.7' }}">Audit Logs</span>
                 </a>
             </div>
         </nav>
         <div class="p-4 mt-auto">
-            <div class="bg-white/5 p-4 rounded-lg flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                    <span class="material-icons text-white text-sm">person</span>
+            <div class="p-4 rounded-lg flex items-center gap-3" style="background-color: var(--sidebar-hover)">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center" style="background-color: var(--sidebar-active)">
+                    <span class="material-icons text-sm" style="color: var(--sidebar-text)">person</span>
                 </div>
                 <div class="overflow-hidden flex-1">
                     <p class="text-xs font-semibold truncate">{{ Auth::user()->name ?? 'Guest' }}</p>
-                    <p class="text-[10px] text-white/50 truncate capitalize">{{ str_replace('_', ' ', Auth::user()->role ?? 'guest') }}</p>
+                    <p class="text-[10px] truncate capitalize" style="opacity: 0.7">{{ str_replace('_', ' ', Auth::user()->role ?? 'guest') }}</p>
                 </div>
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <button type="submit" class="text-white/50 hover:text-white transition-colors">
+                    <button type="submit" class="hover:opacity-100 transition-opacity" style="opacity: 0.7; color: var(--sidebar-text)">
                         <span class="material-icons text-sm">logout</span>
                     </button>
                 </form>
@@ -136,9 +248,38 @@
                 <p class="text-slate-500 text-sm">@yield('subheader', '')</p>
             </div>
             <div class="flex items-center gap-4">
+                <button onclick="toggleThemeDropdown()" class="p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 transition-colors relative" title="Theme Settings">
+                    <span class="material-icons text-lg">palette</span>
+                </button>
                 @yield('actions')
                 <!-- Notification Bell with Dropdown -->
                 <div class="relative" id="notification-wrapper">
+                    <!-- Theme Dropdown -->
+                    <div id="theme-dropdown" class="hidden absolute right-12 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-100 z-50 p-4 transform transition-all duration-200 opacity-0 scale-95 origin-top-right">
+                        <h3 class="font-bold text-slate-800 text-sm mb-3">Theme Settings</h3>
+                        
+                        <div class="mb-4">
+                            <p class="text-xs font-semibold text-slate-500 mb-2">Accent Color</p>
+                            <div class="grid grid-cols-5 gap-2">
+                                <button onclick="setThemeColor('30 30 138')" class="w-8 h-8 rounded-full bg-[#1e1e8a] hover:ring-2 ring-offset-2 ring-[#1e1e8a]"></button>
+                                <button onclick="setThemeColor('16 185 129')" class="w-8 h-8 rounded-full bg-emerald-500 hover:ring-2 ring-offset-2 ring-emerald-500"></button>
+                                <button onclick="setThemeColor('139 92 246')" class="w-8 h-8 rounded-full bg-violet-500 hover:ring-2 ring-offset-2 ring-violet-500"></button>
+                                <button onclick="setThemeColor('244 63 94')" class="w-8 h-8 rounded-full bg-rose-500 hover:ring-2 ring-offset-2 ring-rose-500"></button>
+                                <button onclick="setThemeColor('245 158 11')" class="w-8 h-8 rounded-full bg-amber-500 hover:ring-2 ring-offset-2 ring-amber-500"></button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 mb-2">Sidebar Style</p>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="setSidebarTheme('solid')" class="px-2 py-1.5 text-xs font-medium bg-[#171719] text-white hover:bg-black rounded border border-slate-700">Modern (Default)</button>
+                                <button onclick="setSidebarTheme('blue')" class="px-2 py-1.5 text-xs font-medium bg-[#1e1e8a] text-white hover:bg-blue-900 rounded border border-blue-900">Impact Blue</button>
+                                <button onclick="setSidebarTheme('dark')" class="px-2 py-1.5 text-xs font-medium bg-slate-700 text-white hover:bg-slate-600 rounded border border-slate-600">Slate Dark</button>
+                                <button onclick="setSidebarTheme('midnight')" class="px-2 py-1.5 text-xs font-medium bg-[#0f172a] text-white hover:bg-slate-800 rounded border border-slate-900">Midnight</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <button id="notification-bell" onclick="toggleNotificationDropdown()" class="p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 transition-colors relative">
                         <span class="material-icons text-lg">notifications</span>
                         <span id="notif-badge" class="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white hidden transition-all"></span>
@@ -381,6 +522,40 @@
             })
             .catch(() => {});
         }, 30000);
+
+        // Theme Switcher Logic
+        let themeDropdownOpen = false;
+        function toggleThemeDropdown() {
+            const dropdown = document.getElementById('theme-dropdown');
+            themeDropdownOpen = !themeDropdownOpen;
+            if(themeDropdownOpen) {
+                dropdown.classList.remove('hidden');
+                setTimeout(() => {
+                    dropdown.classList.remove('opacity-0', 'scale-95');
+                    dropdown.classList.add('opacity-100', 'scale-100');
+                }, 10);
+                closeNotifDropdown();
+            } else {
+                dropdown.classList.remove('opacity-100', 'scale-100');
+                dropdown.classList.add('opacity-0', 'scale-95');
+                setTimeout(() => dropdown.classList.add('hidden'), 200);
+            }
+        }
+
+        function setThemeColor(rgb) {
+            document.documentElement.style.setProperty('--color-primary', rgb);
+            localStorage.setItem('theme_color', rgb);
+        }
+
+        function setSidebarTheme(theme) {
+            if(theme === 'solid') {
+                document.documentElement.removeAttribute('data-sidebar');
+                localStorage.removeItem('sidebar_theme');
+            } else {
+                document.documentElement.setAttribute('data-sidebar', theme);
+                localStorage.setItem('sidebar_theme', theme);
+            }
+        }
     </script>
 </body>
 </html>

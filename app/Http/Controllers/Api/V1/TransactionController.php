@@ -54,6 +54,8 @@ class TransactionController extends Controller
         $request->validate([
             'signature_image' => 'nullable|file|mimes:jpeg,jpg,png,pdf|max:5120',
             'notes' => 'nullable|string',
+            'biometric_verified' => 'nullable|boolean',
+            'biometric_device' => 'nullable|string',
         ]);
 
         $transaction = Transaction::findOrFail($id);
@@ -69,6 +71,9 @@ class TransactionController extends Controller
                 'delivered_by' => $request->user()->id,
                 'delivery_date' => now(),
                 'remarks' => $request->notes,
+                'biometric_verified' => $request->boolean('biometric_verified'),
+                'biometric_verified_at' => $request->boolean('biometric_verified') ? now() : null,
+                'biometric_device' => $request->biometric_device,
             ];
 
             if ($request->hasFile('signature_image')) {
@@ -81,7 +86,9 @@ class TransactionController extends Controller
             ActivityLog::create([
                 'user_id' => $request->user()->id,
                 'action' => 'deliver',
-                'description' => 'Delivered package ' . ($transaction->package->name ?? 'Unknown') . ' to ' . ($transaction->beneficiary->first_name ?? 'Unknown'),
+                'description' => 'Delivered package ' . ($transaction->package->name ?? 'Unknown') .
+                ' to ' . ($transaction->beneficiary->first_name ?? 'Unknown') .
+                ($request->boolean('biometric_verified') ? ' (Biometrically Verified)' : ''),
                 'subject_type' => Transaction::class ,
                 'subject_id' => $transaction->id,
                 'ip_address' => $request->ip(),
@@ -91,7 +98,7 @@ class TransactionController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Delivery recorded successfully',
+                'message' => 'Delivery recorded successfully' . ($request->boolean('biometric_verified') ? ' with biometric confirmation' : ''),
                 'data' => $transaction->fresh(),
             ]);
 

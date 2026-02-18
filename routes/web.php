@@ -56,7 +56,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/beneficiaries/create', [BeneficiaryController::class , 'create'])->name('beneficiaries.create')->middleware('permission:create_beneficiaries');
     Route::post('/beneficiaries', [BeneficiaryController::class , 'store'])->name('beneficiaries.store')->middleware('permission:create_beneficiaries');
     Route::get('/beneficiaries/{beneficiary}', [BeneficiaryController::class , 'show'])->name('beneficiaries.show')->middleware('permission:view_beneficiaries');
+    Route::put('/beneficiaries/{beneficiary}', [BeneficiaryController::class , 'update'])->name('beneficiaries.update')->middleware('permission:create_beneficiaries'); // Re-using permission or create new one
     Route::post('/beneficiaries/{beneficiary}/review', [BeneficiaryController::class , 'review'])->name('beneficiaries.review')->middleware('permission:review_beneficiaries');
+    Route::post('/beneficiaries/{beneficiary}/approve-packages', [BeneficiaryController::class , 'approvePackages'])->name('beneficiaries.approve-packages')->middleware('permission:review_beneficiaries');
+    Route::post('/beneficiaries/{beneficiary}/verify-biometric', [BeneficiaryController::class , 'verifyBiometric'])->name('beneficiaries.verify-biometric');
+    Route::post('/client-log', [BeneficiaryController::class , 'clientLog'])->name('client.log');
 
     // Audit Logs
     Route::get('/audit-logs', [AuditLogController::class , 'index'])->name('audit.index');

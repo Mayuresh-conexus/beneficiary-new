@@ -121,6 +121,40 @@ class BeneficiaryController extends Controller
         return view('beneficiaries.show', compact('beneficiary', 'timeline'));
     }
 
+    public function update(Request $request, Beneficiary $beneficiary)
+    {
+        if (!auth()->user()->hasPermissionTo('review_beneficiaries')) {
+            abort(403);
+        }
+
+        $request->validate([
+            'status' => 'required|in:submitted,approved,rejected,fraud,under_review',
+            'remarks' => 'nullable|string'
+        ]);
+
+        $oldStatus = $beneficiary->status;
+        $newStatus = $request->status;
+
+        // Prevent unauthorized status changes unless super admin
+        if (!auth()->user()->hasRole('super_admin') && in_array($oldStatus, ['fraud', 'approved']) && $newStatus !== $oldStatus) {
+            return back()->with('error', 'Only Super Admins can revert Approved or Fraud status.');
+        }
+
+        $beneficiary->update(['status' => $newStatus]);
+
+        ActivityLog::create([
+            'user_id' => auth()->id(),
+            'action' => 'status_correction',
+            'description' => 'Manually changed status from ' . ucfirst($oldStatus) . ' to ' . ucfirst($newStatus),
+            'subject_type' => Beneficiary::class ,
+            'subject_id' => $beneficiary->id,
+            'properties' => ['old_status' => $oldStatus, 'new_status' => $newStatus, 'reason' => $request->remarks],
+            'ip_address' => $request->ip(),
+        ]);
+
+        return back()->with('success', 'Beneficiary status updated successfully.');
+    }
+
     public function review(Request $request, Beneficiary $beneficiary)
     {
         if (!auth()->user()->hasPermissionTo('review_beneficiaries')) {
@@ -132,40 +166,147 @@ class BeneficiaryController extends Controller
         ]);
 
         $action = $request->action;
-
-        // Create review record
-        Review::create([
-            'beneficiary_id' => $beneficiary->id,
-            'manager_id' => auth()->id(),
-            'action' => $action,
-            'remarks' => $request->remarks,
-        ]);
-
-        // Update status
         $statusMap = ['approve' => 'approved', 'reject' => 'rejected', 'fraud' => 'fraud'];
-        $beneficiary->update(['status' => $statusMap[$action]]);
 
-        // Log activity
-        ActivityLog::create([
-            'user_id' => auth()->id(),
-            'action' => $action,
-            'description' => ucfirst($action) . ' beneficiary #' . $beneficiary->id . ($request->remarks ? ': ' . $request->remarks : ''),
-            'subject_type' => Beneficiary::class ,
-            'subject_id' => $beneficiary->id,
-            'properties' => ['old_status' => $beneficiary->getOriginal('status'), 'new_status' => $statusMap[$action]],
-            'ip_address' => $request->ip(),
+        \DB::beginTransaction();
+        try {
+            // Create review record
+            Review::create([
+                'beneficiary_id' => $beneficiary->id,
+                'manager_id' => auth()->id(),
+                'action' => $action,
+                'remarks' => $request->remarks,
+            ]);
+
+            // Update status
+            $beneficiary->update(['status' => $statusMap[$action]]);
+
+            // Create Transactions for Approved Packages
+            // Transaction creation moved to approvePackages method
+
+            // Log activity
+            ActivityLog::create([
+                'user_id' => auth()->id(),
+                'action' => $action,
+                'description' => ucfirst($action) . ' beneficiary #' . $beneficiary->id . ($request->remarks ? ': ' . $request->remarks : ''),
+                'subject_type' => Beneficiary::class ,
+                'subject_id' => $beneficiary->id,
+                'properties' => ['old_status' => $beneficiary->getOriginal('status'), 'new_status' => $statusMap[$action]],
+                'ip_address' => $request->ip(),
+            ]);
+
+            // Send notifications
+            $this->notifyReviewAction($beneficiary, $action, $request->remarks);
+
+            $messages = [
+                'approve' => 'Beneficiary approved. Please proceed to Package Approval below.',
+                'reject' => 'Beneficiary rejected.',
+                'fraud' => 'Beneficiary marked as fraud.',
+            ];
+
+            \DB::commit();
+            return redirect()->route('beneficiaries.show', $beneficiary)->with('success', $messages[$action]);
+
+        }
+        catch (\Exception $e) {
+            \DB::rollBack();
+            return back()->with('error', 'Action failed: ' . $e->getMessage());
+        }
+    }
+
+    public function approvePackages(Request $request, Beneficiary $beneficiary)
+    {
+        if (!auth()->user()->hasPermissionTo('review_beneficiaries')) {
+            abort(403);
+        }
+
+        $request->validate([
+            'approved_package_ids' => 'required|array',
+            'approved_package_ids.*' => 'exists:packages,id',
+            'demo_fingerprint' => 'required|boolean', // Simulate fingerprint check
         ]);
 
-        // Send notifications about the review action
-        $this->notifyReviewAction($beneficiary, $action, $request->remarks);
+        if (!$request->demo_fingerprint) {
+            return back()->with('error', 'Biometric verification failed.');
+        }
 
-        $messages = [
-            'approve' => 'Beneficiary approved successfully.',
-            'reject' => 'Beneficiary rejected.',
-            'fraud' => 'Beneficiary marked as fraud. Volunteer has been flagged.',
-        ];
+        \DB::beginTransaction();
+        try {
+            $packages = \App\Models\Package::whereIn('id', $request->approved_package_ids)->get();
 
-        return redirect()->route('beneficiaries.show', $beneficiary)->with('success', $messages[$action]);
+            foreach ($packages as $pkg) {
+                // Check if already assigned/created to avoid duplicates
+                $exists = \App\Models\Transaction::where('beneficiary_id', $beneficiary->id)
+                    ->where('package_id', $pkg->id)
+                    ->exists();
+
+                if (!$exists) {
+                    \App\Models\Transaction::create([
+                        'beneficiary_id' => $beneficiary->id,
+                        'project_id' => $beneficiary->assigned_project_id,
+                        'package_id' => $pkg->id,
+                        'financial_officer_id' => auth()->id(),
+                        'amount' => $pkg->value,
+                        'status' => 'pending',
+                        'biometric_verified' => true, // Simulating that manager verified with fingerprint
+                        'biometric_verified_at' => now(),
+                    ]);
+                }
+            }
+
+            ActivityLog::create([
+                'user_id' => auth()->id(),
+                'action' => 'approve_packages',
+                'description' => 'Approved ' . $packages->count() . ' packages for Beneficiary #' . $beneficiary->id . ' with biometric confirmation.',
+                'subject_type' => Beneficiary::class ,
+                'subject_id' => $beneficiary->id,
+                'ip_address' => $request->ip(),
+            ]);
+
+            \DB::commit();
+            return redirect()->route('beneficiaries.show', $beneficiary)->with('success', 'Packages approved and transactions generated successfully.');
+
+        }
+        catch (\Exception $e) {
+            \DB::rollBack();
+            return back()->with('error', 'Package approval failed: ' . $e->getMessage());
+        }
+    }
+
+    public function verifyBiometric(Request $request, Beneficiary $beneficiary)
+    {
+        // This is an AJAX endpoint called by the "Simulate Scan" button
+        // In a real scenario, this would receive a 'captured_template' and use a library to match it against $beneficiary->biometric_template
+
+        if (empty($beneficiary->biometric_template)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No biometric template found for this beneficiary. Cannot verify.'
+            ], 404);
+        }
+
+        // Simulating a score. Default to passing (80-100) for demo.
+        // LOGIC: Maintain 80% Threshold
+        $threshold = 80;
+
+        // Simulating a score. Default to passing (80-100) for demo.
+        // Pass 'force_fail=1' in request to test failure scenario.
+        $score = $request->boolean('force_fail') ? rand(40, 79) : rand(81, 99);
+
+        if ($score >= $threshold) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Biometric Match Successful',
+                'match_score' => $score
+            ]);
+        }
+        else {
+            return response()->json([
+                'success' => false,
+                'message' => 'Biometric Match Failed: Score below ' . $threshold . '%',
+                'match_score' => $score
+            ]);
+        }
     }
 
     /**
@@ -262,5 +403,11 @@ class BeneficiaryController extends Controller
             ['link' => $link, 'subject_type' => Beneficiary::class , 'subject_id' => $beneficiary->id]
             );
         }
+    }
+
+    public function clientLog(Request $request)
+    {
+        \Log::error('Client-Side Biometric Error: ' . ($request->message ?? 'No Message'), $request->all());
+        return response()->json(['success' => true]);
     }
 }

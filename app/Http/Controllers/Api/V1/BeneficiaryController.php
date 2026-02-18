@@ -385,6 +385,8 @@ class BeneficiaryController extends Controller
         $request->validate([
             'action' => 'required|in:approve,reject,fraud',
             'remarks' => 'required_if:action,reject,fraud|string|nullable',
+            'approved_package_ids' => 'nullable|array',
+            'approved_package_ids.*' => 'exists:packages,id',
         ]);
 
         $beneficiary = Beneficiary::findOrFail($id);
@@ -395,61 +397,82 @@ class BeneficiaryController extends Controller
 
         $statusMap = ['approve' => 'approved', 'reject' => 'rejected', 'fraud' => 'fraud'];
 
-        \App\Models\Review::create([
-            'beneficiary_id' => $beneficiary->id,
-            'manager_id' => $request->user()->id,
-            'action' => $request->action,
-            'remarks' => $request->remarks,
-        ]);
+        DB::beginTransaction();
+        try {
+            \App\Models\Review::create([
+                'beneficiary_id' => $beneficiary->id,
+                'manager_id' => $request->user()->id,
+                'action' => $request->action,
+                'remarks' => $request->remarks,
+            ]);
 
-        $beneficiary->update(['status' => $statusMap[$request->action]]);
+            $beneficiary->update(['status' => $statusMap[$request->action]]);
 
-        // Create Pending Transactions for Distribution if Approved
-        if ($request->action === 'approve') {
-            $beneficiary->load('packages');
-            foreach ($beneficiary->packages as $package) {
-                \App\Models\Transaction::create([
-                    'beneficiary_id' => $beneficiary->id,
-                    'project_id' => $beneficiary->assigned_project_id,
-                    'package_id' => $package->id,
-                    'financial_officer_id' => $request->user()->id,
-                    'amount' => $package->value,
-                    'status' => 'pending',
-                ]);
+            // Create Pending Transactions only for APPROVED packages if the action is 'approve'
+            if ($request->action === 'approve') {
+                $packagesToCreate = [];
+
+                if ($request->has('approved_package_ids') && !empty($request->approved_package_ids)) {
+                    // Only approve specific packages selected by the manager
+                    $packagesToCreate = \App\Models\Package::whereIn('id', $request->approved_package_ids)->get();
+                }
+                else {
+                    // Fallback: If no specific IDs provided, approve all currently assigned packages
+                    $beneficiary->load('packages');
+                    $packagesToCreate = $beneficiary->packages;
+                }
+
+                foreach ($packagesToCreate as $package) {
+                    \App\Models\Transaction::create([
+                        'beneficiary_id' => $beneficiary->id,
+                        'project_id' => $beneficiary->assigned_project_id,
+                        'package_id' => $package->id,
+                        'financial_officer_id' => $request->user()->id,
+                        'amount' => $package->value,
+                        'status' => 'pending',
+                    ]);
+                }
             }
+
+            ActivityLog::create([
+                'user_id' => $request->user()->id,
+                'action' => $request->action,
+                'description' => ucfirst($request->action) . ' beneficiary #' . $beneficiary->id .
+                ($request->has('approved_package_ids') ? ' with specific packages approved' : ''),
+                'subject_type' => Beneficiary::class ,
+                'subject_id' => $beneficiary->id,
+                'ip_address' => $request->ip(),
+            ]);
+
+            // Notify submitter
+            $fullName = $beneficiary->first_name . ' ' . $beneficiary->last_name;
+            $typeMap = [
+                'approve' => 'beneficiary_approved',
+                'reject' => 'beneficiary_rejected',
+                'fraud' => 'fraud_flagged',
+            ];
+
+            if ($beneficiary->submitted_by && $beneficiary->submitted_by !== $request->user()->id) {
+                Notification::send(
+                    $beneficiary->submitted_by,
+                    $typeMap[$request->action],
+                    ucfirst($statusMap[$request->action]) . ' - ' . $fullName,
+                    $fullName . ' has been ' . $statusMap[$request->action] . ' by ' . $request->user()->name . '.' .
+                    ($request->remarks ? ' Remarks: ' . $request->remarks : ''),
+                ['subject_type' => Beneficiary::class , 'subject_id' => $beneficiary->id]
+                );
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Beneficiary ' . $statusMap[$request->action] . ' successfully.',
+            ]);
         }
-
-        ActivityLog::create([
-            'user_id' => $request->user()->id,
-            'action' => $request->action,
-            'description' => ucfirst($request->action) . ' beneficiary #' . $beneficiary->id,
-            'subject_type' => Beneficiary::class ,
-            'subject_id' => $beneficiary->id,
-            'ip_address' => $request->ip(),
-        ]);
-
-        // Notify submitter
-        $fullName = $beneficiary->first_name . ' ' . $beneficiary->last_name;
-        $typeMap = [
-            'approve' => 'beneficiary_approved',
-            'reject' => 'beneficiary_rejected',
-            'fraud' => 'fraud_flagged',
-        ];
-
-        if ($beneficiary->submitted_by && $beneficiary->submitted_by !== $request->user()->id) {
-            Notification::send(
-                $beneficiary->submitted_by,
-                $typeMap[$request->action],
-                ucfirst($statusMap[$request->action]) . ' - ' . $fullName,
-                $fullName . ' has been ' . $statusMap[$request->action] . ' by ' . $request->user()->name . '.' .
-                ($request->remarks ? ' Remarks: ' . $request->remarks : ''),
-            ['subject_type' => Beneficiary::class , 'subject_id' => $beneficiary->id]
-            );
+        catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Beneficiary ' . $statusMap[$request->action] . ' successfully.',
-        ]);
     }
 }

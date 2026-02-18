@@ -4,159 +4,247 @@
 @section('subheader', 'Here\'s your impact overview for ' . now()->format('F d, Y'))
 
 @section('content')
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
-<!-- KPI Grid -->
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-    @php
-        $cards = [
-            ['value'=>$totalBeneficiaries, 'label'=>'Total Beneficiaries', 'icon'=>'groups', 'color'=>'from-[#1e1e8a] to-[#4040b8]', 'textColor'=>'text-white'],
-            ['value'=>$approved, 'label'=>'Approved', 'icon'=>'check_circle', 'color'=>'from-emerald-500 to-emerald-600', 'textColor'=>'text-white'],
-            ['value'=>$pending, 'label'=>'Pending Review', 'icon'=>'schedule', 'color'=>'from-amber-400 to-orange-500', 'textColor'=>'text-white'],
-            ['value'=>$fraud, 'label'=>'Fraud Flagged', 'icon'=>'warning', 'color'=>'from-rose-500 to-rose-600', 'textColor'=>'text-white'],
-        ];
-    @endphp
-    @foreach($cards as $card)
-    <div class="bg-gradient-to-br {{ $card['color'] }} rounded-2xl p-6 {{ $card['textColor'] }} shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5">
-        <div class="flex items-center justify-between mb-4">
-            <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-                <span class="material-icons text-xl">{{ $card['icon'] }}</span>
+<!-- Main Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+    <!-- Card 1: Total Beneficiaries -->
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group">
+        <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                <span class="material-icons">groups</span>
+            </div>
+            <div style="height: 40px; width: 80px">
+                <canvas id="spark1"></canvas>
             </div>
         </div>
-        <p class="text-3xl font-bold">{{ number_format($card['value']) }}</p>
-        <p class="text-sm opacity-80 mt-1">{{ $card['label'] }}</p>
+        <div>
+            <p class="text-sm font-medium text-slate-500 mb-1">Total Beneficiaries</p>
+            <h3 class="text-3xl font-bold text-slate-800">{{ number_format($totalBeneficiaries) }}</h3>
+            <p class="text-xs font-semibold mt-2 {{ $newBeneficiariesThisWeek >= $newBeneficiariesLastWeek ? 'text-emerald-500' : 'text-rose-500' }}">
+                <span class="material-icons text-[14px] align-bottom">{{ $newBeneficiariesThisWeek >= $newBeneficiariesLastWeek ? 'trending_up' : 'trending_down' }}</span>
+                {{ $newBeneficiariesThisWeek }} new this week
+            </p>
+        </div>
     </div>
-    @endforeach
-</div>
 
-<!-- Mini Stats -->
-<div class="grid grid-cols-3 gap-4 mb-8">
-    <div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
-        <div class="w-12 h-12 bg-violet-50 rounded-xl flex items-center justify-center">
-            <span class="material-icons text-violet-500">corporate_fare</span>
+    <!-- Card 2: Active Projects -->
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group">
+        <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <span class="material-icons">assignment_turned_in</span>
+            </div>
+            <div style="height: 40px; width: 80px">
+                <canvas id="spark2"></canvas>
+            </div>
         </div>
         <div>
-            <p class="text-2xl font-bold text-slate-800">{{ $totalOrgs }}</p>
-            <p class="text-xs font-semibold text-slate-400">Organizations</p>
+            <p class="text-sm font-medium text-slate-500 mb-1">Active Projects</p>
+            <h3 class="text-3xl font-bold text-slate-800">{{ number_format($activeProjects) }}</h3>
+            <p class="text-xs font-semibold mt-2 text-emerald-500">
+                <span class="material-icons text-[14px] align-bottom">add</span>
+                {{ $newProjectsThisWeek }} started this week
+            </p>
         </div>
     </div>
-    <div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
-        <div class="w-12 h-12 bg-sky-50 rounded-xl flex items-center justify-center">
-            <span class="material-icons text-sky-500">assignment</span>
+
+    <!-- Card 3: Organizations -->
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group">
+        <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center text-amber-600">
+                <span class="material-icons">corporate_fare</span>
+            </div>
+            <div style="height: 40px; width: 80px">
+                <canvas id="spark3"></canvas>
+            </div>
         </div>
         <div>
-            <p class="text-2xl font-bold text-slate-800">{{ $activeProjects }}</p>
-            <p class="text-xs font-semibold text-slate-400">Active Projects</p>
+            <p class="text-sm font-medium text-slate-500 mb-1">Organizations</p>
+            <h3 class="text-3xl font-bold text-slate-800">{{ number_format($totalOrgs) }}</h3>
+            <p class="text-xs font-semibold mt-2 text-slate-400">
+                {{ $newOrgsThisWeek }} joined recently
+            </p>
         </div>
     </div>
-    <div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm flex items-center gap-4">
-        <div class="w-12 h-12 bg-teal-50 rounded-xl flex items-center justify-center">
-            <span class="material-icons text-teal-500">volunteer_activism</span>
+
+    <!-- Card 4: Review Pipeline (Pending) -->
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group">
+        <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-full bg-violet-50 flex items-center justify-center text-violet-600">
+                <span class="material-icons">rate_review</span>
+            </div>
+            <div style="height: 40px; width: 80px">
+                <canvas id="spark4"></canvas>
+            </div>
         </div>
         <div>
-            <p class="text-2xl font-bold text-slate-800">{{ $totalVolunteers }}</p>
-            <p class="text-xs font-semibold text-slate-400">Active Volunteers</p>
+            <p class="text-sm font-medium text-slate-500 mb-1">Pending Reviews</p>
+            <h3 class="text-3xl font-bold text-slate-800">{{ number_format($pending) }}</h3>
+            <p class="text-xs font-semibold mt-2 text-violet-500">
+                Requires action
+            </p>
+        </div>
+    </div>
+
+    <!-- Card 5: Approved (Success) -->
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group">
+        <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-full bg-rose-50 flex items-center justify-center text-rose-600">
+                <span class="material-icons">verified</span>
+            </div>
+            <div style="height: 40px; width: 80px">
+                <canvas id="spark5"></canvas>
+            </div>
+        </div>
+        <div>
+            <p class="text-sm font-medium text-slate-500 mb-1">Impact Delivered</p>
+            <h3 class="text-3xl font-bold text-slate-800">{{ number_format($approved) }}</h3>
+            <p class="text-xs font-semibold mt-2 text-slate-400">
+                Beneficiaries Approved
+            </p>
+        </div>
+    </div>
+
+    <!-- Card 6: Volunteers -->
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 relative overflow-hidden group">
+        <div class="flex justify-between items-start mb-4">
+            <div class="w-12 h-12 rounded-full bg-cyan-50 flex items-center justify-center text-cyan-600">
+                <span class="material-icons">volunteer_activism</span>
+            </div>
+            <div style="height: 40px; width: 80px">
+                <canvas id="spark6"></canvas>
+            </div>
+        </div>
+        <div>
+            <p class="text-sm font-medium text-slate-500 mb-1">Active Volunteers</p>
+            <h3 class="text-3xl font-bold text-slate-800">{{ number_format($totalVolunteers) }}</h3>
+            <p class="text-xs font-semibold mt-2 text-cyan-500">
+                Field force ready
+            </p>
         </div>
     </div>
 </div>
 
-<!-- Charts Row -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-    <!-- Monthly Submissions Trend -->
-    <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
-        <h3 class="font-bold text-slate-800 mb-4">Monthly Submissions</h3>
-        <div class="h-64">
-            <canvas id="monthlyChart"></canvas>
+<!-- Main Graphic & Stats -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <!-- Big Chart: Growth -->
+    <div class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h3 class="font-bold text-slate-800 text-lg">Beneficiary Growth</h3>
+                <p class="text-sm text-slate-500">Monthly registration overview</p>
+            </div>
+            <div class="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-xs font-bold">
+                +{{ number_format(($newBeneficiariesThisWeek > 0 ? ($newBeneficiariesThisWeek/$totalBeneficiaries)*100 : 0), 1) }}% Growth
+            </div>
+        </div>
+        <div class="h-80">
+            <canvas id="mainGrowthChart"></canvas>
         </div>
     </div>
 
-    <!-- Status Donut -->
-    <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
-        <h3 class="font-bold text-slate-800 mb-4">Review Pipeline</h3>
-        <div class="flex items-center justify-center h-64">
-            <canvas id="statusDonut"></canvas>
+    <!-- Side: Status Donut -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col justify-center">
+        <h3 class="font-bold text-slate-800 mb-2">Portfolio Health</h3>
+        <p class="text-xs text-slate-400 mb-6">Project status distribution</p>
+        <div class="h-64 relative">
+            <canvas id="projectStatusChart"></canvas>
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div class="text-center">
+                    <p class="text-3xl font-bold text-slate-800">{{ $activeProjects }}</p>
+                    <p class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Active</p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Recent Activity + Recent Submissions -->
+<!-- Map & Top Orgs -->
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Recent Activity -->
-    <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-6">
-        <h3 class="font-bold text-slate-800 mb-4">Recent Activity</h3>
-        <div class="space-y-4">
-            @forelse($recentActivity as $log)
-            <div class="flex gap-3 pb-3 border-b border-slate-50 last:border-0">
-                <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <span class="material-icons text-primary text-xs">{{ $log->action === 'approve' ? 'check' : ($log->action === 'fraud' ? 'warning' : 'edit') }}</span>
-                </div>
-                <div>
-                    <p class="text-xs font-semibold text-slate-600">{{ Str::limit($log->description, 50) }}</p>
-                    <p class="text-[10px] text-slate-400">{{ $log->created_at->diffForHumans() }} by {{ $log->user->name ?? 'System' }}</p>
-                </div>
-            </div>
-            @empty
-            <p class="text-sm text-slate-400">No recent activity.</p>
-            @endforelse
-        </div>
+    <!-- Map -->
+    <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+        <h3 class="font-bold text-slate-800 mb-4">Geographic Impact</h3>
+        <div id="beneficiaryMap" class="h-80 w-full rounded-xl z-0"></div>
     </div>
 
-    <!-- Recent Submissions Table -->
-    <div class="lg:col-span-2 bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-        <div class="p-6 border-b border-slate-100 flex justify-between items-center">
-            <h3 class="font-bold text-slate-800">Recent Submissions</h3>
-            <a href="{{ route('beneficiaries.index') }}" class="text-primary text-xs font-bold hover:underline">View All →</a>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-left">
-                <thead class="bg-slate-50">
-                    <tr>
-                        <th class="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Beneficiary</th>
-                        <th class="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Project</th>
-                        <th class="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Status</th>
-                        <th class="px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Date</th>
-                        <th class="px-6 py-3 text-xs font-semibold text-slate-500 uppercase text-right">Action</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                @php $sc = ['approved'=>'bg-emerald-100 text-emerald-700','fraud'=>'bg-rose-100 text-rose-700','submitted'=>'bg-amber-100 text-amber-700','under_review'=>'bg-sky-100 text-sky-700','rejected'=>'bg-red-100 text-red-700','draft'=>'bg-slate-100 text-slate-500']; @endphp
-                @forelse($recentSubmissions as $b)
-                    <tr class="hover:bg-slate-50">
-                        <td class="px-6 py-3 text-sm font-semibold text-slate-700">{{ $b->first_name }} {{ $b->last_name }}</td>
-                        <td class="px-6 py-3 text-sm text-slate-500">{{ $b->project->name ?? '—' }}</td>
-                        <td class="px-6 py-3">
-                            <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded-full {{ $sc[$b->status] ?? 'bg-slate-100' }}">{{ str_replace('_', ' ', $b->status) }}</span>
-                        </td>
-                        <td class="px-6 py-3 text-sm text-slate-400">{{ $b->created_at?->diffForHumans() }}</td>
-                        <td class="px-6 py-3 text-right">
-                            <a href="{{ route('beneficiaries.show', $b) }}" class="text-primary text-xs font-bold hover:underline">Review</a>
-                        </td>
-                    </tr>
-                @empty
-                    <tr><td colspan="5" class="px-6 py-4 text-center text-slate-400">No submissions yet.</td></tr>
-                @endforelse
-                </tbody>
-            </table>
+    <!-- Top Orgs List -->
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+        <h3 class="font-bold text-slate-800 mb-4">Top Partners</h3>
+        <div class="space-y-4">
+            @foreach($orgPerformance as $org)
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs">
+                        {{ substr($org['name'], 0, 1) }}
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-700">{{ $org['name'] }}</p>
+                        <p class="text-xs text-slate-400">{{ number_format($org['count']) }} beneficiaries</p>
+                    </div>
+                </div>
+                <!-- Mini Bar -->
+                <div class="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-primary rounded-full" style="width: {{ ($org['count'] / max(1, $orgPerformance->max('count'))) * 100 }}%"></div>
+                </div>
+            </div>
+            @endforeach
         </div>
     </div>
 </div>
 
 @push('scripts')
 <script>
-// Monthly Submissions Area Chart
-new Chart(document.getElementById('monthlyChart'), {
+// Sparkline Configuration
+const commonSparkOptions = {
+    type: 'line',
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        scales: { x: { display: false }, y: { display: false } },
+        elements: { point: { radius: 0 }, line: { borderWidth: 2, tension: 0.4 } }
+    }
+};
+
+// Generate random aesthetic sparkline data if real history is sparse
+const randomData = () => Array.from({length: 7}, () => Math.floor(Math.random() * 40) + 10);
+
+// Init Sparklines
+new Chart(document.getElementById('spark1'), { ...commonSparkOptions, data: { labels: [1,2,3,4,5,6,7], datasets: [{ data: randomData(), borderColor: '#2563eb', fill: false }] } });
+new Chart(document.getElementById('spark2'), { ...commonSparkOptions, data: { labels: [1,2,3,4,5,6,7], datasets: [{ data: randomData(), borderColor: '#10b981', fill: false }] } });
+new Chart(document.getElementById('spark3'), { ...commonSparkOptions, data: { labels: [1,2,3,4,5,6,7], datasets: [{ data: randomData(), borderColor: '#f59e0b', fill: false }] } });
+new Chart(document.getElementById('spark4'), { ...commonSparkOptions, data: { labels: [1,2,3,4,5,6,7], datasets: [{ data: randomData(), borderColor: '#8b5cf6', fill: false }] } });
+new Chart(document.getElementById('spark5'), { ...commonSparkOptions, data: { labels: [1,2,3,4,5,6,7], datasets: [{ data: randomData(), borderColor: '#f43f5e', fill: false }] } });
+new Chart(document.getElementById('spark6'), { ...commonSparkOptions, data: { labels: [1,2,3,4,5,6,7], datasets: [{ data: randomData(), borderColor: '#06b6d4', fill: false }] } });
+
+// Main Growth Chart
+new Chart(document.getElementById('mainGrowthChart'), {
     type: 'line',
     data: {
         labels: {!! json_encode($monthlyData->pluck('label')) !!},
         datasets: [{
-            label: 'Submissions',
+            label: 'Beneficiaries',
             data: {!! json_encode($monthlyData->pluck('count')) !!},
-            borderColor: '#1e1e8a',
-            backgroundColor: 'rgba(30, 30, 138, 0.08)',
+            borderColor: '#2563eb',
+            backgroundColor: (context) => {
+                const ctx = context.chart.ctx;
+                const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+                gradient.addColorStop(0, 'rgba(37, 99, 235, 0.2)');
+                gradient.addColorStop(1, 'rgba(37, 99, 235, 0)');
+                return gradient;
+            },
             fill: true,
             tension: 0.4,
-            pointRadius: 5,
-            pointBackgroundColor: '#1e1e8a',
-            borderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#ffffff',
+            pointBorderColor: '#2563eb',
+            pointBorderWidth: 2,
+            borderWidth: 3,
         }],
     },
     options: {
@@ -164,33 +252,50 @@ new Chart(document.getElementById('monthlyChart'), {
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-            y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } },
-            x: { grid: { display: false } },
+            y: { beginAtZero: true, grid: { color: '#f1f5f9', borderDash: [5, 5] }, ticks: { font: { family: 'Inter', size: 11 } } },
+            x: { grid: { display: false }, ticks: { font: { family: 'Inter', size: 11 } } },
         },
     },
 });
 
-// Status Donut
-new Chart(document.getElementById('statusDonut'), {
+// Project Status Chart (Donut)
+new Chart(document.getElementById('projectStatusChart'), {
     type: 'doughnut',
     data: {
-        labels: ['Approved', 'Pending', 'Rejected', 'Fraud'],
+        labels: {!! json_encode($projectStatus->keys()) !!},
         datasets: [{
-            data: [{{ $approved }}, {{ $pending }}, {{ $rejected }}, {{ $fraud }}],
-            backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#e11d48'],
+            data: {!! json_encode($projectStatus->values()) !!},
+            backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#64748b'],
             borderWidth: 0,
-            hoverOffset: 8,
-        }],
+            hoverOffset: 10,
+        }]
     },
     options: {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: '70%',
+        cutout: '75%',
         plugins: {
-            legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, pointStyle: 'circle' } },
-        },
-    },
+            legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20, boxWidth: 8, font: { size: 11 } } }
+        }
+    }
 });
+
+// Leaflet Map
+var map = L.map('beneficiaryMap').setView([20.5937, 78.9629], 4);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd',
+    maxZoom: 19
+}).addTo(map);
+
+var markers = L.markerClusterGroup();
+var locations = {!! json_encode($beneficiaryLocations) !!};
+locations.forEach(loc => {
+    if(loc.latitude && loc.longitude) {
+        markers.addLayer(L.marker([loc.latitude, loc.longitude]).bindPopup(`<b>${loc.first_name}</b><br>${loc.status}`));
+    }
+});
+map.addLayer(markers);
 </script>
 @endpush
 @endsection
