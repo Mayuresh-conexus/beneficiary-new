@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Models\Role;
 use App\Models\Organization;
 use App\Models\Program;
 use App\Models\Package;
@@ -17,6 +18,17 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // 0. Seed Roles & Permissions
+        $this->call(RolesAndPermissionsSeeder::class);
+
+        // Fetch Roles
+        $roleSuperAdmin = Role::where('name', 'super_admin')->first();
+        $roleOrgAdmin = Role::where('name', 'organization_admin')->first();
+        $roleManager = Role::where('name', 'manager')->first();
+        $roleVolunteer = Role::where('name', 'volunteer')->first();
+        $roleAuditor = Role::where('name', 'auditor')->first();
+        $roleFinancialOfficer = Role::where('name', 'financial_officer')->first();
+
         // 1. Super Admin
         $superAdmin = User::create([
             'name' => 'Super Admin',
@@ -25,6 +37,7 @@ class DatabaseSeeder extends Seeder
             'role' => 'super_admin',
             'is_active' => true,
         ]);
+        $superAdmin->roles()->attach($roleSuperAdmin);
 
         // 2. Organization
         $org = Organization::create([
@@ -52,6 +65,7 @@ class DatabaseSeeder extends Seeder
             'organization_id' => $org->id,
             'is_active' => true,
         ]);
+        $orgAdmin->roles()->attach($roleOrgAdmin);
 
         // 4. Programs
         $progFood = Program::create([
@@ -140,6 +154,7 @@ class DatabaseSeeder extends Seeder
             'organization_id' => $org->id,
             'is_active' => true,
         ]);
+        $manager->roles()->attach($roleManager);
 
         $volunteer = User::create([
             'name' => 'David Volunteer',
@@ -149,6 +164,7 @@ class DatabaseSeeder extends Seeder
             'organization_id' => $org->id,
             'is_active' => true,
         ]);
+        $volunteer->roles()->attach($roleVolunteer);
 
         $volunteer2 = User::create([
             'name' => 'Amina Field Worker',
@@ -158,6 +174,7 @@ class DatabaseSeeder extends Seeder
             'organization_id' => $org->id,
             'is_active' => true,
         ]);
+        $volunteer2->roles()->attach($roleVolunteer);
 
         $auditor = User::create([
             'name' => 'Audit Officer',
@@ -167,6 +184,7 @@ class DatabaseSeeder extends Seeder
             'organization_id' => $org->id,
             'is_active' => true,
         ]);
+        $auditor->roles()->attach($roleAuditor);
 
         $fo = User::create([
             'name' => 'Financial Officer',
@@ -176,6 +194,7 @@ class DatabaseSeeder extends Seeder
             'organization_id' => $org->id,
             'is_active' => true,
         ]);
+        $fo->roles()->attach($roleFinancialOfficer);
 
         // Assign users to projects
         $projNairobi->assignedUsers()->attach([$manager->id, $volunteer->id, $volunteer2->id]);
