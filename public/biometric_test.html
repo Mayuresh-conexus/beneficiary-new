@@ -310,7 +310,8 @@
                     body: JSON.stringify({
                         first_name: "BioTest",
                         last_name: "FingerprintUser",
-                        government_id: "ID-" + Math.floor(Math.random() * 10000),
+                        // Use timestamp + random to ensure uniqueness
+                        government_id: "ID-" + Date.now() + "-" + Math.floor(Math.random() * 1000),
                         assigned_project_id: pid,
                         biometric_template: capturedTemplate,
                         biometric_device: deviceInfo,
