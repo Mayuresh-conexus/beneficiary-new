@@ -30,7 +30,7 @@ class BeneficiaryController extends Controller
             'address' => 'nullable|string|max:500',
             'date_of_birth' => 'nullable|date',
             'gender' => 'nullable|in:male,female,other',
-            'package_ids' => 'nullable|array',
+            'package_ids' => 'required|array',
             'package_ids.*' => 'exists:packages,id',
             // New Legacy Fields
             'contact_number_2' => 'nullable|string|max:30',
