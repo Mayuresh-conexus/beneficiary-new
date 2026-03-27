@@ -557,5 +557,8 @@
             }
         }
     </script>
+    @if(auth()->check() && (auth()->user()->isSuperAdmin() || auth()->user()->hasRole('organization_admin')))
+        @include('admin.chat.interface')
+    @endif
 </body>
 </html>

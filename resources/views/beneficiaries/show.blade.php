@@ -160,7 +160,6 @@
             
             <form method="POST" action="{{ route('beneficiaries.approve-packages', $beneficiary) }}" id="packageApproveForm">
                 @csrf
-                <input type="hidden" name="demo_fingerprint" id="demoFingerprintToken" value="0">
 
                 <!-- Package List -->
                 <div class="mb-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
@@ -188,52 +187,9 @@
                     </div>
                 </div>
 
-                <!-- Biometric Demo + SecuGen -->
-                <div class="mb-6 border-t border-slate-100 pt-6">
-                    <p class="text-xs font-bold uppercase text-slate-500 mb-3">Biometric Confirmation (Threshold: 80%)</p>
-                    
-                    <!-- Hidden Stored Template for Matching -->
-                    <input type="hidden" id="storedTemplate" value="{{ $beneficiary->biometric_template }}">
 
-                    <div id="biometricStep1" class="text-center py-6 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
-                        <div class="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center mx-auto mb-3 animate-pulse">
-                            <span class="material-icons text-slate-400 text-3xl">fingerprint</span>
-                        </div>
-                        <p class="text-sm text-slate-600 mb-3">Connect SecuGen Scanner & Place Finger</p>
-                        
-                        <div class="flex flex-col items-center gap-3">
-                            <!-- SecuGen Button -->
-                            <button type="button" onclick="captureFP()" class="px-6 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/30 flex items-center gap-2">
-                                <span class="material-icons text-sm">usb</span> Scan with Device
-                            </button>
 
-                            <p class="text-[10px] text-slate-400 font-medium">- OR USE SIMULATION -</p>
-
-                            <div class="flex justify-center gap-2">
-                                <button type="button" onclick="simulateFingerprint(false)" class="px-3 py-1.5 bg-slate-200 text-slate-600 text-[10px] font-bold rounded hover:bg-slate-300 transition-colors">
-                                    Demo Pass
-                                </button>
-                                <button type="button" onclick="simulateFingerprint(true)" class="px-3 py-1.5 bg-slate-200 text-slate-600 text-[10px] font-bold rounded hover:bg-slate-300 transition-colors">
-                                    Demo Fail
-                                </button>
-                                <button type="button" onclick="testMatchService()" class="px-3 py-1.5 bg-yellow-200 text-yellow-800 text-[10px] font-bold rounded hover:bg-yellow-300 transition-colors">
-                                    ? Debug Service
-                                </button>
-                            </div>
-                            <div id="statusMessage" class="text-xs font-semibold text-slate-500 h-4 mt-1"></div>
-                        </div>
-                    </div>
-
-                    <div id="biometricStep2" class="hidden text-center py-6 bg-emerald-50 rounded-xl border border-emerald-200">
-                        <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <span class="material-icons text-emerald-500 text-3xl">check_circle</span>
-                        </div>
-                        <p class="text-sm font-bold text-emerald-700 mb-1">Identity Verified!</p>
-                        <p class="text-xs text-emerald-600" id="matchScoreDisplay">Match Score: --%</p>
-                    </div>
-                </div>
-
-                <button type="submit" id="approveBtn" disabled class="w-full py-3 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button type="submit" id="approveBtn" class="w-full py-3 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/25">
                     Approve & Generate Transactions
                 </button>
             </form>

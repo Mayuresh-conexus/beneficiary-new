@@ -107,6 +107,7 @@ Route::group(['prefix' => 'v1'], function () {
             Route::group(['prefix' => 'admin', 'middleware' => 'role:super_admin,organization_admin', 'as' => 'api.admin.'], function () {
                     Route::apiResource('users', \App\Http\Controllers\Api\V1\Admin\UserController::class);
                     Route::get('roles', [\App\Http\Controllers\Api\V1\Admin\RoleController::class , 'index'])->name('roles');
+
                 }
                 );
             }

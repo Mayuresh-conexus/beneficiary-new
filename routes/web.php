@@ -75,4 +75,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/notifications/{notification}/read', [NotificationController::class , 'markAsRead'])->name('notifications.read');
     Route::post('/notifications/mark-all-read', [NotificationController::class , 'markAllAsRead'])->name('notifications.markAllRead');
     Route::delete('/notifications/{notification}', [NotificationController::class , 'destroy'])->name('notifications.destroy');
+
+    // Admin AI Chat
+    Route::post('/admin/chat', [\App\Http\Controllers\Api\AdminChatController::class , 'sendMessage'])->name('admin.chat');
 });
